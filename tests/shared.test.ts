@@ -15,11 +15,13 @@ interface Fixture {
 describe("shared fixtures (cross-implementation)", () => {
   for (const f of fixtures as Fixture[]) {
     it(f.name, async () => {
+      const mods = f.modules;
       const settings: StorageSettings = {
-        modules: f.modules,
+        modules: mods,
         force: false,
         ref_names: !!f.ref_names,
         auto_update: !!f.ref_names,
+        spacing_style: mods.includes("spacing") ? "standard" : "",
       };
       const result = await processWikitext(f.input, settings);
 

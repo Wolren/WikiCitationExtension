@@ -4,6 +4,14 @@ import {
   addArchiveFromWayback, processArchive,
 } from "../src/lib/archive";
 
+vi.mock("../src/lib/api", () => ({
+  checkWayback: vi.fn().mockResolvedValue({
+    archived_snapshots: { closest: { url: "http://web.archive.org/web/20200101000000/http://example.com", timestamp: "20200101000000", status: "200" } },
+  }),
+  saveWayback: vi.fn().mockResolvedValue(true),
+  headUrl: vi.fn().mockResolvedValue(200),
+}));
+
 describe("getField", () => {
   it("extracts field value", () => {
     expect(getField("|title=Test |doi=10.1000/x", "title")).toBe("Test");

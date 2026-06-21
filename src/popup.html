@@ -19,11 +19,12 @@
         <label class="module-item"><input type="checkbox" data-module="cleanup" checked><div><strong>Cleanup</strong><span>Fix typos, deprecated params, invalid ISBN, empty values</span></div></label>
         <label class="module-item"><input type="checkbox" data-module="dates" checked><div><strong>Dates</strong><span>Normalize dates to Wikipedia format (DD Month YYYY)</span></div></label>
         <label class="module-item"><input type="checkbox" data-module="authors"><div><strong>Authors</strong><span>Convert between Vancouver and normal author style, enrich from APIs</span></div></label>
-        <label class="module-item"><input type="checkbox" data-module="ids" checked><div><strong>Enrich IDs</strong><span>Add ISSN, PMID, PMC, S2CID, QID from DOI</span></div></label>
-        <label class="module-item"><input type="checkbox" data-module="spacing"><div><strong>Spacing</strong><span>Normalize | param = value formatting</span></div></label>
+        <label class="module-item"><input type="checkbox" data-module="ids" checked><div><strong>Enrich IDs</strong><span>Fetch PMID, PMC, S2CID, QID from DOI (does not overwrite existing fields)</span></div></label>
+
         <label class="module-item"><input type="checkbox" data-module="sort"><div><strong>Sort</strong><span>Reorder parameters to Wikipedia standard order</span></div></label>
         <label class="module-item"><input type="checkbox" data-module="archive" checked><div><strong>Archive</strong><span>Add/validate Wayback Machine archive links</span></div></label>
         <label class="module-item"><input type="checkbox" data-module="dedup" checked><div><strong>Dedup</strong><span>Flag duplicate citations by DOI/PMID</span></div></label>
+        <label class="module-item"><input type="checkbox" data-module="sfn"><div><strong>SFN</strong><span>Convert inline &lt;ref&gt;{{cite...}}&lt;/ref&gt; to {{sfn}} short footnotes</span></div></label>
       </div>
     </details>
 
@@ -39,16 +40,28 @@
     </details>
 
     <details class="section">
-      <summary>More options</summary>
-      <div class="opt-row"><label>Spacing style:</label>
+      <summary>Spacing</summary>
+      <div class="opt-row"><label>Style:</label>
         <select id="spacing_style">
-          <option value="">Off (preserve original)</option>
-          <option value="standard" selected>Wikipedia standard (| param = value)</option>
+          <option value="" selected>Off (preserve original)</option>
+          <option value="wide">Wide ( | param = value)</option>
+          <option value="standard">Wikipedia standard (| param = value)</option>
           <option value="compact">Compact (|param=value)</option>
         </select>
       </div>
+    </details>
+
+    <details class="section">
+      <summary>More options</summary>
       <div class="opt-row checkbox-row"><label><input id="strip_issn" type="checkbox"> Strip ISSN when DOI present</label></div>
-      <div class="opt-row"><label for="ids_to_fetch">Fetch IDs:</label><input id="ids_to_fetch" type="text" placeholder="issn,pmid,pmc,s2cid,qid"></div>
+      <div class="fetch-ids">
+        <label style="display:block;font-size:13px;font-weight:600;color:#ccc;margin-bottom:4px">Fetch IDs</label>
+        <label class="chip-item"><input type="checkbox" data-id="issn"> ISSN</label>
+        <label class="chip-item"><input type="checkbox" data-id="pmid" checked> PMID</label>
+        <label class="chip-item"><input type="checkbox" data-id="pmc" checked> PMC</label>
+        <label class="chip-item"><input type="checkbox" data-id="s2cid" checked> S2CID</label>
+        <label class="chip-item"><input type="checkbox" data-id="qid" checked> QID</label>
+      </div>
     </details>
 
     <details class="section">

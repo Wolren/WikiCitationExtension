@@ -40,3 +40,16 @@ describe("formatCitationBody", () => {
     expect(result).toBe("| a = 1 | b = 2");
   });
 });
+
+describe("wide format no double spaces", () => {
+  it("adds single space before each pipe", async () => {
+    const { processWikitext } = await import("../src/content");
+    const result = await processWikitext(
+      "{{cite journal |title=Test |date=2024}}",
+      { modules: "cleanup,dates", spacing_style: "wide", force: false, ref_names: false }
+    );
+    expect(result).toBe("{{cite journal | title = Test | date = 2024}}");
+    expect(result).not.toMatch(/  \|/);
+    expect(result).not.toMatch(/\|  /);
+  });
+});

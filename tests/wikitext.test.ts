@@ -161,8 +161,8 @@ describe("detectCitationType", () => {
     expect(detectCitationType({ degree: "PhD" }).new).toBe("cite thesis");
   });
 
-  it("defaults to web", () => {
-    expect(detectCitationType({ title: "Test" }).new).toBe("cite web");
+  it("returns null for unknown type", () => {
+    expect(detectCitationType({ title: "Test" }).new).toBeUndefined();
   });
 });
 

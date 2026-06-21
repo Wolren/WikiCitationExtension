@@ -51,6 +51,15 @@ select {
 .force-refresh input { margin-right: 4px; }
 .force-refresh .hint { color: #a44; font-weight: 400; }
 
+.fetch-ids { padding: 2px 8px; }
+.chip-item {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; margin: 2px 3px 2px 0;
+  background: #2d2d2d; border-radius: 3px; cursor: pointer; font-size: 12px;
+}
+.chip-item:hover { background: #3d3d3d; }
+.chip-item input { margin: 0; }
+
 .btn-reset {
   width: 100%; padding: 8px 16px; background: #444; color: #ccc;
   border: 1px solid #666; border-radius: 2px; font-size: 13px; cursor: pointer; margin-top: 8px;

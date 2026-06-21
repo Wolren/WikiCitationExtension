@@ -4,8 +4,9 @@ import { cleanupCitation, addArchiveUrls } from "./lib/cleanup";
 import { normalizeDate } from "./lib/dates";
 import { normalizeSpacing, sortParams, formatCitationBody } from "./lib/spacing";
 import { generateDiff } from "./lib/diff";
-import { processAuthors, tryFetchAuthors } from "./lib/authors";
-import { setApiKeys } from "./lib/api";
+import { convertToSfn } from "./lib/sfn";
+import { processAuthors } from "./lib/authors";
+import { setApiKeys, fetchCrossrefAuthors } from "./lib/api";
 import type { StorageSettings } from "./lib/types";
 
 const BUTTON_ID = "wikifix-btn";
@@ -220,12 +221,14 @@ export async function getSettings(): Promise<StorageSettings> {
   try {
     const raw = await browser.storage.local.get(STORAGE_KEY);
     return (raw[STORAGE_KEY] as StorageSettings) || {
+      serverUrl: "",
       modules: "expand,cleanup,dates,ids,archive,dedup",
       force: false,
       ref_names: false,
     };
   } catch {
     return {
+      serverUrl: "",
       modules: "expand,cleanup,dates,ids,archive,dedup",
       force: false,
       ref_names: false,
@@ -305,10 +308,22 @@ async function fixInEditor(settings: StorageSettings): Promise<void> {
   }
   updateEditorContent(fixed);
   const desc = describeChanges(wikitext, fixed, diff);
-  showNotification("success", `${desc.count} changes`, desc.html);
-  // Auto-click "Show changes" to let user review
   const diffBtn = document.getElementById("wpDiff") as HTMLButtonElement | null;
-  if (diffBtn) setTimeout(() => diffBtn.click(), 300);
+  if (diffBtn) {
+    // Click show changes first, show feedback after diff loads
+    const observer = new MutationObserver((_, obs) => {
+      if (document.querySelector(".diff, #mw-diff-otitle, table.diff")) {
+        obs.disconnect();
+        setTimeout(() => showNotification("success", `${desc.count} changes`, desc.html), 100);
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    setTimeout(() => diffBtn.click(), 300);
+    // Fallback: show feedback after 8s even if diff never loads
+    setTimeout(() => { observer.disconnect(); showNotification("success", `${desc.count} changes`, desc.html); }, 8000);
+  } else {
+    showNotification("success", `${desc.count} changes`, desc.html);
+  }
 }
 
 async function fixViaServer(settings: StorageSettings): Promise<void> {
@@ -371,11 +386,12 @@ export async function processWikitext(text: string, settings: StorageSettings): 
     const si = citation.start;
     if (si === -1) continue;
     const ei = si + citation.raw.length;
+
     let params = { ...citation.params };
     let changed = false;
     let newTemplateType: string | null = null;
 
-    if (moduleEnabled(mods, "spacing")) {
+    if (settings.spacing_style) {
       params = normalizeSpacing(params);
       changed = true;
     }
@@ -410,11 +426,10 @@ export async function processWikitext(text: string, settings: StorageSettings): 
     }
 
     if (moduleEnabled(mods, "authors")) {
-      changed = true;
       const doi = params["doi"];
       const body = formatBody(params);
       const authorsFetch = settings.refresh_authors && doi
-        ? { fetchAuthors: async (d: string) => tryFetchAuthors(d) }
+        ? { fetchAuthors: (d: string) => fetchCrossrefAuthors(d) }
         : undefined;
       const authorResult = await processAuthors(body, {
         style: (settings.author_style as "normal" | "vancouver") || "normal",
@@ -425,6 +440,7 @@ export async function processWikitext(text: string, settings: StorageSettings): 
       });
       if (authorResult !== body) {
         params = parseParams(authorResult.replace(/^\||\|$/g, ""));
+        changed = true;
       }
     }
 
@@ -459,32 +475,42 @@ export async function processWikitext(text: string, settings: StorageSettings): 
     }
 
     if (moduleEnabled(mods, "sort")) {
-      params = sortParams(params);
-      changed = true;
+      const sorted = sortParams(params);
+      const sortedKeys = Object.keys(sorted);
+      const origKeys = Object.keys(params);
+      if (sortedKeys.some((k, i) => k !== origKeys[i]) || sortedKeys.length !== origKeys.length) {
+        params = sorted;
+        changed = true;
+      }
     }
 
     const template = newTemplateType || citation.template;
     if (!changed && !refNames) continue;
 
     let body: string;
-    if (moduleEnabled(mods, "spacing")) {
-      const style = (settings.spacing_style || "standard");
-      body = formatBody(params, style === "compact");
+    // When spacing is off and nothing changed, use original raw to avoid any formatting drift
+    if (!settings.spacing_style && !changed) {
+      body = citation.raw.slice(citation.template.length + 2, -2).replace(/^\s+/, "");
+    } else if (settings.spacing_style) {
+      body = formatBody(params, settings.spacing_style);
     } else {
-      // Preserve original format: modify raw body only where values changed
+      // Preserve original format exactly: bracket-aware value matching
       const rawBody = citation.raw.slice(citation.template.length + 2, -2);
-      const first = rawBody.match(/\|\s*([^=]+?)\s*=\s*([^|]+)/);
-      const hasSpaces = first ? /\|\s/.test(first[0]) && /\s=\s/.test(first[0]) : true;
-      let preserved = rawBody;
+      let preserved = rawBody.replace(/^\s+/, ""); // strip leading space (wrapper adds it)
       for (const [k, v] of Object.entries(params)) {
-        const re = new RegExp(`(\\|\\s*${escapeRe(k)}\\s*=\\s*)[^|]+`, "i");
-        if (re.test(preserved)) {
-          preserved = preserved.replace(re, (_, prefix) => `${prefix}${v}`);
-        } else {
-          preserved += hasSpaces ? ` | ${k} = ${v}` : `|${k}=${v}`;
+        const idx = preserved.search(new RegExp(`\\|\\s*${escapeRe(k)}\\s*=\\s*`, "i"));
+        if (idx === -1) {
+          preserved += ` | ${k} = ${v}`;
+          continue;
         }
+        const prefix = preserved.slice(idx, preserved.indexOf("=", idx) + 1).match(/^.*?\s*=\s*/)?.[0] || `| ${k} = `;
+        const afterStart = idx + prefix.length;
+        const oldVal = bracketAwareValue(preserved, afterStart);
+        const oldLen = oldVal.length;
+        const trailing = oldVal.match(/(\s*)$/)?.[1] || "";
+        preserved = preserved.slice(0, idx) + prefix + v + trailing + preserved.slice(afterStart + oldLen);
       }
-      body = preserved.trim();
+      body = preserved;
     }
     const newRaw = body ? `{{${template} ${body}}}` : `{{${template}}}`;
 
@@ -528,7 +554,7 @@ export async function processWikitext(text: string, settings: StorageSettings): 
             if (text.slice(refEnd, refEnd + 6) === "</ref>") { refEnd += 6; }
             replacements.push({
               start: refStart, end: refEnd,
-              replacement: formatRefName({ template, params }, params, finalName),
+              replacement: formatRefName({ template, params }, params, finalName, body),
             });
             continue;
           }
@@ -559,6 +585,10 @@ export async function processWikitext(text: string, settings: StorageSettings): 
     result = result.slice(0, r.start) + r.replacement + result.slice(r.end);
   }
 
+  if (moduleEnabled(mods, "sfn")) {
+    result = convertToSfn(result);
+  }
+
   return result;
 }
 
@@ -567,15 +597,20 @@ export function templateTypeFor(template: string): string {
   return "cite web";
 }
 
-export function formatRefName(citation: { template: string; params: Record<string, string> }, params: Record<string, string>, name: string): string {
-  const body = formatBody(params);
+export function formatRefName(citation: { template: string; params: Record<string, string> }, params: Record<string, string>, name: string, bodyOverride?: string): string {
+  const body = bodyOverride ?? formatBody(params);
   return body ? `<ref name="${name}">{{${citation.template} ${body}}}</ref>` : `<ref name="${name}">{{${citation.template}}}</ref>`;
 }
 
-export function formatBody(params: Record<string, string>, compact = false): string {
-  return Object.entries(params)
-    .map(([k, v]) => compact ? `|${k}=${v}` : `| ${k} = ${v}`)
-    .join(" ");
+export function formatBody(params: Record<string, string>, style: string = "standard"): string {
+  const entries = Object.entries(params);
+  if (style === "wide") {
+    return entries.map(([k, v]) => ` | ${k} = ${v}`).join("").trimStart();
+  }
+  return entries.map(([k, v]) => {
+    if (style === "compact") return `|${k}=${v}`;
+    return `| ${k} = ${v}`;
+  }).join(" ");
 }
 
 export function getPageTitle(): string {
@@ -636,14 +671,11 @@ export function describeChanges(
 ): { count: number; html: string } {
   const lines = diff.split("\n");
   const added: string[] = [];
-  const removed: string[] = [];
   for (const line of lines) {
     if (line.startsWith("+") && !line.startsWith("+++")) added.push(line.slice(1));
-    else if (line.startsWith("-") && !line.startsWith("---")) removed.push(line.slice(1));
   }
 
-  const breakdown: string[] = [];
-  const modules: [RegExp, string][] = [
+  const modulePatterns: [RegExp, string][] = [
     [/\|\s*(?:title|journal|volume|issue|pages?|date|publisher|doi)\s*=/i, "Expand"],
     [/\|\s*(?:access-date|page|pages?|isbn|issn|doi-broken-date|url-status)\s*=/i, "Cleanup"],
     [/\|\s*date\s*=\s*\d+\s+\w+\s+\d{4}/i, "Dates"],
@@ -653,14 +685,26 @@ export function describeChanges(
     [/\|\s*ref\s*=/i, "Ref names"],
   ];
 
-  for (const [pattern, label] of modules) {
-    const count = added.filter((l) => pattern.test(l)).length -
-      removed.filter((l) => pattern.test(l)).length;
-    if (count > 0) breakdown.push(`${label}: +${count}`);
-    else if (count < 0) breakdown.push(`${label}: ${count}`);
+  const counts: Record<string, number> = {};
+  for (const line of added) {
+    let matched = false;
+    for (const [pattern, label] of modulePatterns) {
+      if (pattern.test(line)) {
+        counts[label] = (counts[label] || 0) + 1;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched && /^\{\{cite\s/i.test(line)) {
+      counts["Spacing"] = (counts["Spacing"] || 0) + 1;
+    }
   }
 
   const total = added.length;
+  const breakdown = Object.entries(counts)
+    .filter(([, c]) => c > 0)
+    .map(([label, c]) => `${label}: +${c}`);
+
   const html = `<div style="font-weight:600;font-size:14px;margin-bottom:6px">${total} change${total !== 1 ? "s" : ""}</div>
     ${breakdown.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px">${breakdown.map((b) => `<span style="background:#2d2d2d;padding:3px 8px;border-radius:3px;font-size:11px;white-space:nowrap">${b}</span>`).join("")}</div>` : ""}`;
   return { count: total, html };
@@ -694,6 +738,22 @@ export function showDiffPanel(fixed: string, diff: string, title: string): void 
 export function escapeHtml(s: string): string {
   if (typeof s !== "string") return "";
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function bracketAwareValue(text: string, start: number): string {
+  let val = "";
+  let depth = 0;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === "{" && text[i + 1] === "{") { depth++; val += "{{"; i++; }
+    else if (ch === "}" && text[i + 1] === "}") {
+      if (depth === 0) break;
+      depth--; val += "}}"; i++;
+    }
+    else if (ch === "|" && depth === 0) break;
+    else { val += ch; }
+  }
+  return val;
 }
 
 export function escapeRe(s: string): string {

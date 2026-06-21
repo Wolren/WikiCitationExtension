@@ -120,7 +120,7 @@ describe("processWikitext", () => {
   it("returns reformatted but equivalent citation for unchanged content", async () => {
     const result = await processWikitext(
       "{{cite journal | title = Test | doi = 10.1000/ct1 | date = 15 March 2024}}",
-      { modules: "expand,cleanup,dates,spacing,sort" }
+      { modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" }
     );
     expect(result).toContain("title = Test");
     expect(result).toContain("doi = 10.1000/ct1");
@@ -130,14 +130,14 @@ describe("processWikitext", () => {
 
   it("normalizes date in citation", async () => {
     const result = await processWikitext("{{cite journal |date=2024-03-15 |title=Test}}",
-      { modules: "expand,cleanup,dates,spacing,sort" }
+      { modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" }
     );
     expect(result).toContain("15 March 2024");
   });
 
   it("normalizes spacing in citation", async () => {
     const result = await processWikitext("{{cite journal|title=Test|doi=10.1000/ct2|date=2024}}",
-      { modules: "expand,cleanup,dates,spacing,sort" }
+      { modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" }
     );
     expect(result).toContain("| title = Test");
     expect(result).toContain("| doi = 10.1000/ct2");
@@ -151,7 +151,7 @@ describe("processWikitext", () => {
   it("adds ref name when refNames=true", async () => {
     const result = await processWikitext(
       "<ref>{{cite journal |last=Smith |year=2024 |title=Test |doi=10.1000/ct4}}</ref>",
-      { ref_names: true, modules: "expand,cleanup,dates,spacing,sort" }
+      { ref_names: true, modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" }
     );
     expect(result).toContain('name="Smith2024"');
   });
@@ -160,7 +160,7 @@ describe("processWikitext", () => {
     const text =
       '<ref>{{cite journal |last=Smith |year=2024 |title=A |doi=10.1000/ct5a}}</ref>' +
       ' <ref>{{cite journal |last=Smith |year=2024 |title=B |doi=10.1000/ct5b}}</ref>';
-    const result = await processWikitext(text, { ref_names: true, modules: "expand,cleanup,dates,spacing,sort" });
+    const result = await processWikitext(text, { ref_names: true, modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" });
     expect(result).toContain('name="Smith2024"');
     expect(result).toContain('name="Smith2024-2"');
   });
@@ -168,7 +168,7 @@ describe("processWikitext", () => {
   it("leaves existing ref names as-is", async () => {
     const text =
       '<ref name="Smith">{{cite journal |last=Smith |year=2024 |title=Test |doi=10.1000/ct6}}</ref>';
-    const result = await processWikitext(text, { ref_names: true, modules: "expand,cleanup,dates,spacing,sort" });
+    const result = await processWikitext(text, { ref_names: true, modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" });
     expect(result).toContain('name="Smith"');
     expect(result).not.toContain('name="Smith2024"');
     expect(result.match(/<ref/g)?.length).toBe(1); // no double ref
@@ -177,7 +177,7 @@ describe("processWikitext", () => {
   it("renames existing ref names when rename_ref_names is true", async () => {
     const text =
       '<ref name="Smith">{{cite journal |last=Smith |year=2024 |title=Test |doi=10.1000/ct6r}}</ref>';
-    const result = await processWikitext(text, { ref_names: true, rename_ref_names: true, modules: "expand,cleanup,dates,spacing,sort" });
+    const result = await processWikitext(text, { ref_names: true, rename_ref_names: true, modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" });
     expect(result).toContain('name="Smith2024"');
     expect(result).not.toContain('name="Smith"');
     expect(result.match(/<ref/g)?.length).toBe(1);
@@ -186,7 +186,7 @@ describe("processWikitext", () => {
   it("does not double-wrap <ref> when adding name to bare <ref>", async () => {
     const text =
       '<ref>{{cite journal |last=Jones |year=2023 |title=Article |doi=10.1000/ct7}}</ref>';
-    const result = await processWikitext(text, { ref_names: true, modules: "expand,cleanup,dates,spacing,sort" });
+    const result = await processWikitext(text, { ref_names: true, modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" });
     expect(result).toContain('name="Jones2023"');
     expect(result.match(/<ref/g)?.length).toBe(1);
     expect(result).not.toMatch(/<ref><ref/);
@@ -195,7 +195,7 @@ describe("processWikitext", () => {
   it("does not wrap citations in See also / Further reading sections", async () => {
     const text =
       "==See also==\n\n* {{cite journal |last=King |year=2021 |title=Review |doi=10.1000/ct99}}";
-    const result = await processWikitext(text, { ref_names: true, modules: "expand,cleanup,dates,spacing,sort" });
+    const result = await processWikitext(text, { ref_names: true, modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" });
     expect(result).not.toContain("<ref");
     expect(result).toContain("{{cite journal");
   });
@@ -203,7 +203,7 @@ describe("processWikitext", () => {
   it("wraps bare citation in ref name when no <ref> tag exists", async () => {
     const text =
       '{{cite journal |last=Lee |year=2022 |title=Paper |doi=10.1000/ct8}}';
-    const result = await processWikitext(text, { ref_names: true, modules: "expand,cleanup,dates,spacing,sort" });
+    const result = await processWikitext(text, { ref_names: true, modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" });
     expect(result).toContain('<ref name="Lee2022">');
     expect(result).toMatch(/<\/ref>$/);
     expect(result.match(/<ref/g)?.length).toBe(1);
@@ -213,7 +213,7 @@ describe("processWikitext", () => {
     const text =
       "{{cite journal |last=Smith|title=A|date=2024-03-15}}" +
       "{{cite web |title=B|date=2024-04-20|url=http://example.com}}";
-    const result = await processWikitext(text, { modules: "expand,cleanup,dates,spacing,sort" });
+    const result = await processWikitext(text, { modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" });
     expect(result).toContain("15 March 2024");
     expect(result).toContain("20 April 2024");
     expect(result).toContain("| last = Smith");
@@ -237,7 +237,7 @@ describe("processWikitext", () => {
   it("handles sort params", async () => {
     const result = await processWikitext(
       "{{cite journal |doi=10.1000/ct8 |title=Test |date=2024}}",
-      { modules: "expand,cleanup,dates,spacing,sort" }
+      { modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" }
     );
     const titleIdx = result.indexOf("title");
     const doiIdx = result.indexOf("doi");
@@ -256,7 +256,7 @@ describe("processWikitext", () => {
   it("handles no changes gracefully (reformats but preserves content)", async () => {
     const result = await processWikitext(
       "{{cite web |title=Test |date=2024 |url=http://example.com}}",
-      { modules: "expand,cleanup,dates,spacing,sort" }
+      { modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" }
     );
     expect(result).toContain("title = Test");
     expect(result).toContain("date = 2024");
@@ -297,5 +297,21 @@ describe("processWikitext", () => {
     expect(result).toContain("Expanded Title");
     expect(result).toContain("Some Journal");
     expect(result).toContain("15 March 2024");
+  });
+
+  it("preserves exact spacing when spacing_style is off — no changes", async () => {
+    const input = `{{cite web |last=Telfer |first=Tori |date=11 May 2015 |title=Are Multiple Personalities Always a Disorder? |url=https://www.vice.com/en/article/when-multiple-personalities-are-not-a-disorder-400/ |access-date=15 June 2020 |website=Vice |language=en |archive-date=13 August 2024 |archive-url=https://web.archive.org/web/20240813035324/https://www.vice.com/en/article/when-multiple-personalities-are-not-a-disorder-400/ |url-status=live }}`;
+    const result = await processWikitext(input, { modules: "expand,cleanup,dates,ids,archive", spacing_style: "", force: false, ref_names: false });
+    expect(result).toBe(input);
+  });
+
+  it("preserves original pipe spacing when spacing is off but modules change values", async () => {
+    const input = `{{cite journal |last=Smith |year=2024 |doi=10.1000/ct_no_spacing}}`;
+    const result = await processWikitext(input, { modules: "cleanup", spacing_style: "", force: false, ref_names: false });
+    // The original is `|last=Smith |year=2024 |doi=...` — no leading space before pipe, single space around
+    // Even if cleanup removes nothing, the original spacing should be preserved
+    expect(result).toContain(`|last=Smith |year=2024`);
+    expect(result).not.toMatch(/  \|/);
+    expect(result).not.toMatch(/\|  /);
   });
 });
