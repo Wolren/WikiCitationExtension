@@ -93,7 +93,21 @@ describe("vauthorsToLastfirst", () => {
 
   it("replaces initials with full names", () => {
     const result = vauthorsToLastfirst("|vauthors=Smith JA |title=Test", [["Smith", "John A."]]);
-    expect(result).toContain("first=John A.");
+    expect(result).toContain("first=John A");
+  });
+
+  it("strips trailing periods from vauthors initials", () => {
+    const result = vauthorsToLastfirst("|vauthors=Benezech M., DeWitte J. |title=Test");
+    expect(result).toContain("first=M");
+    expect(result).toContain("first2=J");
+    expect(result).not.toContain("first=M.");
+    expect(result).not.toContain("first=J.");
+  });
+
+  it("strips trailing periods from vauthors surname", () => {
+    const result = vauthorsToLastfirst("|vauthors=Smith. JA |title=Test");
+    expect(result).toContain("last=Smith");
+    expect(result).not.toContain("last=Smith.");
   });
 
   it("truncates with maxAuthors", () => {
@@ -136,6 +150,12 @@ describe("lastfirstToVauthors", () => {
     const result = lastfirstToVauthors("|last1=Smith |first1=JA |last2=Doe |first2=JB |last3=Jones |first3=MC", 2);
     expect(result).toContain("et al");
     expect(result).not.toContain("Jones");
+  });
+
+  it("strips trailing periods from last names when building vauthors", () => {
+    const result = lastfirstToVauthors("|last=Benezech M. |title=Test");
+    expect(result).toContain("vauthors=Benezech M");
+    expect(result).not.toContain("M.");
   });
 });
 

@@ -3,13 +3,13 @@ import { PersistentCache } from "./cache";
 
 interface CrossrefWork { DOI?: string; title?: string[]; "container-title"?: string[]; publisher?: string; "published-print"?: { "date-parts"?: number[][] }; "published-online"?: { "date-parts"?: number[][] }; author?: { given?: string; family?: string }[]; type?: string; "is-oa"?: boolean; }
 interface OpenAlexWork { id?: string; ids?: { wikidata?: string }; }
-interface NCBIResult { uid?: string; title?: string; source?: string; }
+interface NCBIResult { uid?: string; title?: string; source?: string; lang?: string; }
 interface ArXivResult { title?: string; doi?: string; published?: string; }
 interface OpenLibraryResult { title?: string; publishers?: string[]; }
 interface SemanticScholarResult { externalIds?: { CorpusId?: string }; citationCount?: number; }
 interface EuropePMCResult { title?: string; journalTitle?: string; }
 interface WaybackResponse { archived_snapshots?: { closest?: { url?: string; timestamp?: string; status?: string } } }
-interface DataCiteResult { id?: string; doi?: string; titles?: { title?: string }[]; publisher?: string; publicationYear?: number; dates?: { date?: string; dateType?: string }[]; creators?: { givenName?: string; familyName?: string; name?: string }[]; }
+interface DataCiteResult { id?: string; doi?: string; titles?: { title?: string }[]; publisher?: string; publicationYear?: number; dates?: { date?: string; dateType?: string }[]; creators?: { givenName?: string; familyName?: string; name?: string }[]; language?: string; }
 interface UnpaywallResult { doi?: string; is_oa?: boolean; best_oa_location?: { url?: string; host_type?: string; }; }
 
 let crossrefEmail = "";

@@ -97,6 +97,7 @@ beforeEach(() => {
     max_authors: 6,
     ids_to_fetch: "pmid,pmc,s2cid,qid",
     spacing_style: "",
+    skip_org_authors: true,
     crossref_email: "",
     ncbi_api_key: "",
     semantic_scholar_api_key: "",
@@ -144,6 +145,7 @@ beforeEach(() => {
       <div><input id="semantic_scholar_api_key" type="password"></div>
       <div><input id="auto_update" type="checkbox"></div>
       <div><input id="rename_ref_names" type="checkbox"></div>
+      <div><input id="skip_org_authors" type="checkbox"></div>
       <div><input id="force" type="checkbox"></div>
       <button id="resetBtn" class="btn-reset">Reset defaults</button>
     </div>`;

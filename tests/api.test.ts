@@ -4,7 +4,7 @@ import {
   fetchOpenAlex, fetchNCBISummary, searchNCBIPmid, searchNCBIPmc,
   fetchArXiv, fetchOpenLibrary, fetchSemanticScholar,
   fetchEuropePMC, fetchEuropePMCByDoi, fetchEuropePMCByPmid,
-  headUrl, checkWayback, saveWayback,
+  headUrl, checkWayback, saveWayback, fetchEditToken, editPage,
 } from "../src/lib/api";
 import { Cache } from "../src/lib/cache";
 
@@ -261,6 +261,50 @@ describe("saveWayback", () => {
   it("returns false on network failure", async () => {
     mockFetch.mockRejectedValueOnce(new Error("fail"));
     const result = await saveWayback("http://example.com/save3");
+    expect(result).toBe(false);
+  });
+});
+
+describe("fetchEditToken", () => {
+  it("returns CSRF token", async () => {
+    mockFetch.mockResolvedValueOnce(mockOkResponse({ query: { tokens: { csrtoken: "abc123\\+" } } }));
+    const result = await fetchEditToken("https://en.wikipedia.org/w/api.php");
+    expect(result).toBe("abc123\\+");
+  });
+
+  it("returns null on fetch failure", async () => {
+    mockFetch.mockRejectedValueOnce(new Error("fail"));
+    const result = await fetchEditToken("https://en.wikipedia.org/w/api.php");
+    expect(result).toBeNull();
+  });
+
+  it("returns null on API error", async () => {
+    mockFetch.mockResolvedValueOnce(mockErrorResponse());
+    const result = await fetchEditToken("https://en.wikipedia.org/w/api.php");
+    expect(result).toBeNull();
+  });
+});
+
+describe("editPage", () => {
+  it("saves page content via API", async () => {
+    // First call: token fetch
+    mockFetch.mockResolvedValueOnce(mockOkResponse({ query: { tokens: { csrtoken: "token123" } } }));
+    // Second call: edit
+    mockFetch.mockResolvedValueOnce(mockOkResponse({ edit: { result: "Success" } }));
+    const result = await editPage("https://en.wikipedia.org/w/api.php", "Test", "new content", "test edit");
+    expect(result).toBe(true);
+  });
+
+  it("returns false on token fetch failure", async () => {
+    mockFetch.mockRejectedValueOnce(new Error("fail"));
+    const result = await editPage("https://en.wikipedia.org/w/api.php", "Test", "content", "edit");
+    expect(result).toBe(false);
+  });
+
+  it("returns false when edit fails", async () => {
+    mockFetch.mockResolvedValueOnce(mockOkResponse({ query: { tokens: { csrtoken: "token123" } } }));
+    mockFetch.mockResolvedValueOnce(mockErrorResponse());
+    const result = await editPage("https://en.wikipedia.org/w/api.php", "Test", "content", "edit");
     expect(result).toBe(false);
   });
 });

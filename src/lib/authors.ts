@@ -1,3 +1,5 @@
+import { escapeRe } from "./wikitext";
+
 export type AuthorFetchSource = {
   name: string;
   fetch: (doi: string) => Promise<[string, string][] | null>;
@@ -21,11 +23,86 @@ export function normalizeName(name: string): string {
   return s;
 }
 
+/** Prefixes indicating an organization rather than a person name in vauthors */
+const ORG_PREFIXES = [
+  // Government / intergovernmental
+  "united states ", "u.s. ", "us ", "federal ", "national ", "government of ",
+  "department of ", "office of ", "bureau of ", "ministry of ", "agency for ",
+  "administration of ", "authority of ", "board of ", "commission of ",
+  "committee on ", "council of ", "panel on ", "task force on ",
+  "centers for ", "centre for ", "institute of ", "institute for ",
+  "national institute of ", "national institutes of ", "national academy of ",
+  "national research ", "national science ", "national health ",
+  "european ", "european union ", "european commission ", "european parliament ",
+  "european court of ", "european agency for ",
+  "royal ", "her majesty's ",
+  // International
+  "united nations ", "united nations ", "world health ", "world bank ",
+  "world trade ", "world meteorological ", "world intellectual property ",
+  "world food ", "world economic ", "world customs ",
+  "international ", "international labour ",
+  "international monetary ", "international criminal ",
+  "international atomic energy ", "international civil aviation ",
+  "international maritime ", "international organization for ",
+  "international organisation for ", "organisation for economic ",
+  "organization for economic ", "north atlantic treaty ",
+  // Professional associations & societies
+  "american ", "british ", "canadian ", "australian ", "german ",
+  "french ", "japanese ", "chinese ", "russian ", "indian ", "dutch ",
+  "swiss ", "swedish ", "norwegian ", "danish ", "finnish ",
+  "association for ", "association of ", "society for ", "society of ",
+  "academy of ", "college of ", "school of ", "faculty of ",
+  "federation of ", "confederation of ", "union of ",
+  "council for ", "council of ",
+  "institution of ", "institution for ",
+  "royal society ", "royal college ", "royal academy ",
+  "american society of ", "american academy of ", "american association of ",
+  "american college of ", "american institute of ",
+  "british society of ", "british academy of ", "british association of ",
+  "british institute of ", "british college of ",
+  "canadian society of ", "canadian academy of ",
+  "european society of ", "european academy of ",
+  "international society of ", "international academy of ",
+  "international association of ", "international federation of ",
+  "world federation of ", "world association of ",
+  // Universities & research
+  "university of ", "université de ", "universität ",
+  "università ", "universidad de ", "universidade de ",
+  "university college ", "university hospital ",
+  "institute of technology ", "institute for ",
+  "school of medicine ", "school of public ",
+  "college of medicine ", "college of physicians ",
+  "harvard ", "stanford ", "yale ", "oxford ", "cambridge ",
+  "massachusetts institute of ", "california institute of ",
+  "johns hopkins ", "mayo clinic ", "cleveland clinic ",
+  // Hospitals & medical
+  "hospital of ", "general hospital ", "university hospital ",
+  "children's hospital ", "national hospital ",
+  "st. ", "st ", "saint ",
+  // Corporations (common in patents & pharma)
+  "microsoft ", "google ", "ibm ", "apple ", "amazon ",
+  "pfizer ", "novartis ", "roche ", "merck ", "johnson & johnson ",
+  "bayer ", "sanofi ", "glaxo ", "astrazeneca ",
+  // Generic organizational
+  "committee for ", "commission for ", "commission on ",
+  "conference of ", "congress of ", "assembly of ",
+  "program on ", "programme on ", "project on ",
+  "working group on ", "ad hoc ",
+  "consortium for ", "consortium of ",
+  "foundation for ", "fund for ",
+  "group of ", "network of ", "coalition for ",
+  "taskforce on ", "task force on ",
+  "australian ", "new zealand ", "south african ",
+  "deutsche ", "schweizer ", "suisse ", "nederlandse ",
+];
+
 export function parseVauthors(vauthors: string): [string, string][] {
   if (!vauthors?.trim()) return [];
   const parts = vauthors.split(",").map(p => p.trim()).filter(p => p && !/^et\s+al/i.test(p));
   return parts.map(p => {
     const trimmed = p.trim();
+    const lower = trimmed.toLowerCase();
+    if (ORG_PREFIXES.some(pre => lower.startsWith(pre))) return [trimmed, ""];
     const spaceIdx = trimmed.indexOf(" ");
     if (spaceIdx === -1) return [trimmed, ""];
     return [trimmed.slice(0, spaceIdx).trim(), trimmed.slice(spaceIdx + 1).trim()];
@@ -46,15 +123,55 @@ export function extractInitials(name: string): string {
   return result;
 }
 
+/** Extract a param value from body, respecting [[brackets]] and {{templates}} */
+function extractBracketAware(body: string, param: string): string | null {
+  const re = new RegExp(`\\|\\s*${escapeRe(param)}\\s*=\\s*`, "i");
+  const m = re.exec(body);
+  if (!m) return null;
+  let val = "";
+  let depth = 0;
+  for (let i = m.index + m[0].length; i < body.length; i++) {
+    const ch = body[i];
+    const next = body[i + 1] || "";
+    if (ch === "{" && next === "{") { depth++; val += "{{"; i++; continue; }
+    if (ch === "}" && next === "}") { depth--; val += "}}"; i++; continue; }
+    if (ch === "[" && next === "[") { depth++; val += "[["; i++; continue; }
+    if (ch === "]" && next === "]") { depth--; val += "]]"; i++; continue; }
+    if (ch === "|" && depth === 0) break;
+    val += ch;
+  }
+  return val.trim() || null;
+}
+
+/** Bracket-aware replace of a param in body */
+function removeBracketAware(body: string, param: string): string {
+  const re = new RegExp(`\\|\\s*${escapeRe(param)}\\s*=\\s*`, "i");
+  const m = re.exec(body);
+  if (!m) return body;
+  let end = m.index + m[0].length;
+  let depth = 0;
+  for (let i = end; i < body.length; i++) {
+    const ch = body[i];
+    const next = body[i + 1] || "";
+    if (ch === "{" && next === "{") { depth++; i++; }
+    else if (ch === "}" && next === "}") { depth--; i++; }
+    else if (ch === "[" && next === "[") { depth++; i++; }
+    else if (ch === "]" && next === "]") { depth--; i++; }
+    else if (ch === "|" && depth === 0) { end = i; break; }
+    else { end = i + 1; }
+  }
+  return body.slice(0, m.index) + body.slice(end);
+}
+
 export function vauthorsToLastfirst(
   body: string,
   fullNames?: [string, string][],
   maxAuthors?: number
 ): string {
-  const match = body.match(/\|\s*vauthors\s*=\s*([^|]+)/i);
-  if (!match) return body;
-  const authors = parseVauthors(match[1].trim());
-  let result = body.replace(/\|\s*vauthors\s*=\s*[^|]+\s*/gi, "");
+  const vauthorsVal = extractBracketAware(body, "vauthors");
+  if (!vauthorsVal) return body;
+  const authors = parseVauthors(vauthorsVal);
+  let result = removeBracketAware(body, "vauthors");
   const limited = maxAuthors && maxAuthors > 0 && authors.length > maxAuthors;
   const count = limited ? maxAuthors! : authors.length;
   for (let i = 0; i < count; i++) {
@@ -64,7 +181,7 @@ export function vauthorsToLastfirst(
       const matched = fullNames.find(f => normalizeName(f[0]) === normalizeName(last));
       if (matched && matched[1].length > first.length) first = matched[1];
     }
-    result += `|last${suffix}=${last} |first${suffix}=${first}`;
+    result += `|last${suffix}=${last.replace(/\.$/, "")} |first${suffix}=${first.replace(/\.+$/, "")}`;
   }
   if (limited) result += " |display-authors=etal";
   return result;
@@ -75,7 +192,12 @@ const INITIALS_WORD_BOUNDARY = /\b[A-Z](?:\.|\b)/g;
 function collapseInitials(first: string): string {
   const matches = first.match(INITIALS_WORD_BOUNDARY);
   if (matches) {
-    return matches.map(m => m.charAt(0).toUpperCase()).join("");
+    return matches.map(m => m.charAt(0).toUpperCase()).join("").slice(0, 2);
+  }
+  // Handle run-together initials like "CA" or "JT" (no separators between letters)
+  const clean = first.replace(/\./g, "");
+  if (/^[A-Za-z]{2,3}$/.test(clean)) {
+    return clean.slice(0, 2).toUpperCase();
   }
   return first.charAt(0).toUpperCase();
 }
@@ -105,18 +227,42 @@ function getLastFirstPairs(body: string): LastFirstPair[] {
     .sort((a, b) => a.idx - b.idx);
 }
 
-export function lastfirstToVauthors(body: string, maxAuthors?: number): string {
+export function lastfirstToVauthors(body: string, maxAuthors?: number, skipOrgAuthors?: boolean): string {
   if (/\|\s*vauthors\s*=/.test(body)) return body;
   const pairs = getLastFirstPairs(body);
   if (pairs.length === 0) return body;
-  let result = body.replace(/\|\s*(?:last\d*|first\d*)\s*=\s*[^|]+?\s*(?=\||$)/gi, "").trim();
-  if (result.endsWith("|")) result = result.slice(0, -1).trim();
-  const limited = maxAuthors && maxAuthors > 0 && pairs.length > maxAuthors;
-  const used = limited ? pairs.slice(0, maxAuthors!) : pairs;
-  const vauthorsStr = used.map(p => `${p.last} ${collapseInitials(p.first)}`).join(", ");
-  result += ` |vauthors=${vauthorsStr}`;
-  if (limited) result += ", et al";
-  return result;
+
+  // Determine which pairs to convert to vauthors (optionally skip orgs)
+  const toRemove: typeof pairs = [];
+  const toConvert: typeof pairs = [];
+  for (const p of pairs) {
+    if (skipOrgAuthors && ORG_PREFIXES.some(pre => p.last.toLowerCase().startsWith(pre))) {
+      toRemove.push(p);                // org — keep in body, don't convert
+    } else {
+      toConvert.push(p);               // person — remove from body, convert
+    }
+  }
+  if (toConvert.length === 0) return body;
+
+  for (const p of toConvert) {
+    const suffix = p.idx === 1 ? "" : String(p.idx);
+    body = body.replace(new RegExp(`\\|\\s*last${suffix}\\s*=\\s*[^|]+?\\s*(?=\\||$)`), "").trim();
+    const firstRe = new RegExp(`\\|\\s*first${suffix}\\s*=\\s*[^|]+?\\s*(?=\\||$)`);
+    body = body.replace(firstRe, "").trim();
+  }
+  body = body.replace(/\s{2,}/g, " ").trim();
+  if (body.endsWith("|")) body = body.slice(0, -1).trim();
+
+  const limited = maxAuthors && maxAuthors > 0 && toConvert.length > maxAuthors;
+  const used = limited ? toConvert.slice(0, maxAuthors!) : toConvert;
+  const vauthorsStr = used.map(p => {
+    let last = p.last.replace(/\.+$/, "").replace(/\b([A-Z])\s+(?=[A-Z](?:,\s*|$))/g, "$1").trim();
+    const init = collapseInitials(p.first);
+    return init ? `${last} ${init}` : last;
+  }).join(", ");
+  body += ` |vauthors=${vauthorsStr}`;
+  if (limited) body += ", et al";
+  return body;
 }
 
 export function enrichLastfirst(
@@ -197,6 +343,7 @@ export interface ProcessAuthorsOptions {
   maxAuthors?: number;
   fullNames?: [string, string][];
   force?: boolean;
+  skipOrgAuthors?: boolean;
 }
 
 export async function processAuthors(
@@ -204,7 +351,7 @@ export async function processAuthors(
   options: ProcessAuthorsOptions
 ): Promise<string> {
   if (options.style === "vancouver") {
-    return lastfirstToVauthors(body, options.maxAuthors);
+    return lastfirstToVauthors(body, options.maxAuthors, options.skipOrgAuthors);
   }
   if (options.style === "normal") {
     return vauthorsToLastfirst(body, options.fullNames, options.maxAuthors);

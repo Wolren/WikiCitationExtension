@@ -117,22 +117,6 @@ export function parseParams(body: string): Record<string, string> {
   return params;
 }
 
-export function renderCitation(template: string, params: Record<string, string>): string {
-  const entries = Object.entries(params);
-  if (entries.length === 0) return `{{${template}}}`;
-  const body = entries.map(([k, v]) => `| ${k} = ${v}`).join(" ");
-  return `{{${template} ${body}}}`;
-}
-
-export function applyRenames(body: string, renames: Record<string, string>): string {
-  let result = body;
-  for (const [oldName, newName] of Object.entries(renames)) {
-    const re = new RegExp(`\\|\\s*${escapeRe(oldName)}\\s*=`, "gi");
-    result = result.replace(re, `| ${newName} =`);
-  }
-  return result;
-}
-
 export function extractDoiFromUrl(url: string): string | null {
   if (!url) return null;
   const m = url.match(/https?:\/\/(?:dx\.)?doi\.org\/(10\.\S+)/i);
@@ -167,7 +151,11 @@ export function generateRefName(body: string): string | null {
 
   if (!last) return null;
 
-  let name = last;
+  // Use only the first surname: truncate at first comma, semicolon, or " and "
+  const firstSurname = last.split(/[,;]|\s+and\s+/i)[0].replace(/\.+$/, "").trim();
+  if (!firstSurname) return null;
+
+  let name = firstSurname;
   if (year) name += year;
 
   if (/^\d/.test(name)) name = "ref-" + name;

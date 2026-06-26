@@ -1,8 +1,8 @@
 import { findCitations, parseParams, generateRefName, escapeRe } from "./lib/wikitext";
 import { expandCitation } from "./lib/expand";
-import { cleanupCitation, addArchiveUrls } from "./lib/cleanup";
+import { cleanupCitation, cleanupCitationBody, addArchiveUrls } from "./lib/cleanup";
 import { normalizeDate } from "./lib/dates";
-import { normalizeSpacing, sortParams, formatCitationBody } from "./lib/spacing";
+import { normalizeSpacing, sortParams } from "./lib/spacing";
 import { generateDiff } from "./lib/diff";
 import { convertToSfn } from "./lib/sfn";
 import { processAuthors } from "./lib/authors";
@@ -518,7 +518,7 @@ const SETTINGS_SCHEMA: Record<string, string> = {
   modules: 'string', force: 'boolean', ref_names: 'boolean', auto_update: 'boolean',
   author_style: 'string', refresh_authors: 'boolean', max_authors: 'number',
   ids_to_fetch: 'string', force_archive_all: 'boolean', create_archive: 'boolean',
-  strip_issn: 'boolean', rename_ref_names: 'boolean', spacing_style: 'string',
+  strip_issn: 'boolean', rename_ref_names: 'boolean', skip_org_authors: 'boolean', spacing_style: 'string',
   crossref_email: 'string', ncbi_api_key: 'string', semantic_scholar_api_key: 'string',
 };
 
@@ -761,7 +761,7 @@ function createEmptyStats(): ProcessStats {
   };
 }
 
-const BATCH_SIZE = 5;
+const BATCH_SIZE = 10;
 
 export async function processWikitext(
   text: string,
@@ -987,6 +987,7 @@ async function processCitationData(
       style: (settings.author_style as "normal" | "vancouver") || "normal",
       maxAuthors: settings.max_authors ?? 6,
       force: settings.force,
+      skipOrgAuthors: settings.skip_org_authors ?? true,
     };
     if (settings.refresh_authors && params["doi"] && !_isOffline) {
       if (signal?.aborted) return null;
@@ -1024,24 +1025,24 @@ async function processCitationData(
     if (signal?.aborted) return null;
     const doi = params["doi"];
     const toFetch = (settings.ids_to_fetch || "pmid,pmc,s2cid,qid").split(",").map(s => s.trim());
-    if (toFetch.includes("pmid") && !params["pmid"]) {
-      const pmid = await searchNCBIPmid(doi, signal);
-      if (pmid) { params["pmid"] = pmid; changed = true; meta.enrichedIds = true; }
+
+    // Phase 1: parallel — pmid, s2cid, qid are independent (all use doi)
+    const [pmidResult, ssResult, oaResult] = await Promise.all([
+      toFetch.includes("pmid") && !params["pmid"] ? searchNCBIPmid(doi, signal) : Promise.resolve(null),
+      toFetch.includes("s2cid") && !params["s2cid"] ? fetchSemanticScholar(doi, signal) : Promise.resolve(null),
+      toFetch.includes("qid") && !params["qid"] ? fetchOpenAlex(doi, signal) : Promise.resolve(null),
+    ]);
+    if (pmidResult) { params["pmid"] = pmidResult; changed = true; meta.enrichedIds = true; }
+    if (ssResult?.externalIds?.CorpusId) { params["s2cid"] = ssResult.externalIds.CorpusId; changed = true; meta.enrichedIds = true; }
+    if (oaResult?.ids?.wikidata) {
+      const qid = oaResult.ids.wikidata.split("/").pop();
+      if (qid) { params["qid"] = qid; changed = true; meta.enrichedIds = true; }
     }
+
+    // Phase 2: pmc depends on pmid
     if (toFetch.includes("pmc") && !params["pmc"]) {
       const pmc = await searchNCBIPmc(params["pmid"] || "", signal);
       if (pmc) { params["pmc"] = pmc; changed = true; meta.enrichedIds = true; }
-    }
-    if (toFetch.includes("s2cid") && !params["s2cid"]) {
-      const ss = await fetchSemanticScholar(doi, signal);
-      if (ss?.externalIds?.CorpusId) { params["s2cid"] = ss.externalIds.CorpusId; changed = true; meta.enrichedIds = true; }
-    }
-    if (toFetch.includes("qid") && !params["qid"]) {
-      const oa = await fetchOpenAlex(doi, signal);
-      if (oa?.ids?.wikidata) {
-        const qid = oa.ids.wikidata.split("/").pop();
-        if (qid) { params["qid"] = qid; changed = true; meta.enrichedIds = true; }
-      }
     }
   }
 
@@ -1104,35 +1105,30 @@ function buildReplacementFromData(
     return null;
   }
 
-  return body ? `{{${template} ${body}}}` : `{{${template}}}`;
+  return body ? `{{${template} ${cleanupCitationBody(body)}}}` : `{{${template}}}`;
 }
 
-function buildReplacement(
-  citation: Citation,
-  params: Record<string, string>,
-  template: string,
-  changed: boolean,
-  settings: StorageSettings
-): string {
-  let body: string;
-  if (!settings.spacing_style && !changed) {
-    body = citation.raw.slice(citation.template.length + 2, -2).replace(/^\s+/, "");
-  } else if (settings.spacing_style) {
-    body = formatBody(params, settings.spacing_style);
-  } else {
-    body = buildPreservedBody(citation, params);
-  }
-  return body ? `{{${template} ${body}}}` : `{{${template}}}`;
+/** Detect the spacing style of the original body for consistent new-param formatting */
+function detectSpacingStyle(body: string): { beforePipe: string; afterPipe: string; beforeEq: string; afterEq: string } {
+  const idx = body.indexOf("=");
+  if (idx === -1) return { beforePipe: " ", afterPipe: "", beforeEq: "", afterEq: "" };
+  const hasInterPipeSpace = / \|/.test(body);
+  const beforePipe = hasInterPipeSpace ? " " : "";
+  const afterPipe = body.match(/^\|(\s)/)?.[1] || "";
+  const beforeEq = idx > 0 && body[idx - 1] === " " ? " " : "";
+  const afterEq = idx < body.length - 1 && body[idx + 1] === " " ? " " : "";
+  return { beforePipe, afterPipe, beforeEq, afterEq };
 }
 
 /** @internal exported for testing */
 export function buildPreservedBody(citation: Citation, params: Record<string, string>): string {
   const rawBody = citation.raw.slice(citation.template.length + 2, -2);
   let preserved = rawBody.replace(/^\s+/, "");
+  const style = rawBody.length > 0 ? detectSpacingStyle(preserved) : { beforePipe: " ", afterPipe: "", beforeEq: " ", afterEq: " " };
   for (const [k, v] of Object.entries(params)) {
     const idx = preserved.search(new RegExp(`\\|\\s*${escapeRe(k)}\\s*=\\s*`, "i"));
     if (idx === -1) {
-      preserved = preserved.replace(/\s+$/, "") + ` | ${k} = ${v}`;
+      preserved = preserved.replace(/\s+$/, "") + `${style.beforePipe}|${style.afterPipe}${k}${style.beforeEq}=${style.afterEq}${v}`;
       continue;
     }
     const prefix = preserved.slice(idx, preserved.indexOf("=", idx) + 1);
@@ -1681,18 +1677,6 @@ export function bracketAwareValue(text: string, start: number): string {
     else val += ch;
   }
   return val;
-}
-
-/** Remove params from preserved body that are not in the new params (e.g. vauthors converted to last/first) */
-function removeStaleParams(preserved: string, newParamKeys: Set<string>): string {
-  const segments = preserved.split(/(?=\|)/);
-  const result: string[] = [];
-  for (const seg of segments) {
-    const m = seg.match(/^\|\s*([\w-]+)\s*=/);
-    if (m && !newParamKeys.has(m[1].toLowerCase())) continue;
-    result.push(seg);
-  }
-  return result.join("").replace(/\s{2,}/g, " ").trim();
 }
 
 async function initialize(): Promise<void> {

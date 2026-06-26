@@ -3,6 +3,37 @@ import { normalizeDate } from "./dates";
 import { fixIsbn } from "./cleanup";
 import { extractDoiFromUrl } from "./wikitext";
 
+const LANGUAGE_MAP: Record<string, string> = {
+  fr: "French", de: "German", es: "Spanish", it: "Italian", pt: "Portuguese",
+  ru: "Russian", ja: "Japanese", zh: "Chinese", ar: "Arabic", nl: "Dutch",
+  ko: "Korean", sv: "Swedish", no: "Norwegian", da: "Danish", fi: "Finnish",
+  pl: "Polish", tr: "Turkish", he: "Hebrew", th: "Thai", cs: "Czech",
+  hu: "Hungarian", ro: "Romanian", uk: "Ukrainian", el: "Greek", id: "Indonesian",
+  ms: "Malay", vi: "Vietnamese", bn: "Bengali", ta: "Tamil", te: "Telugu",
+  mr: "Marathi", hi: "Hindi",
+};
+
+function detectWikiLanguage(): string | null {
+  if (typeof document === "undefined") return null;
+  const htmlLang = document.documentElement.lang?.split("-")[0]?.toLowerCase();
+  if (htmlLang && htmlLang !== "en") return htmlLang;
+  try {
+    const host = window.location.hostname;
+    const subdomain = host.split(".")[0];
+    if (subdomain && subdomain !== "www" && subdomain.length === 2) return subdomain;
+  } catch { /* ignore */ }
+  return "en";
+}
+
+function normalizeLanguageCode(lang: string): string | null {
+  const lower = lang.trim().toLowerCase();
+  if (lower.length === 2 && /^[a-z]{2}$/.test(lower)) return lower;
+  for (const [code, name] of Object.entries(LANGUAGE_MAP)) {
+    if (name.toLowerCase() === lower || name.toLowerCase().startsWith(lower)) return code;
+  }
+  return null;
+}
+
 export function cleanPublisher(name: string): string {
   const original = name.trim();
   if (!original) return original;
@@ -37,6 +68,7 @@ export function cleanJournal(name: string): string {
 
 const CROSSREF_TYPE_MAP: Record<string, string> = {
   "journal-article": "cite journal",
+  "journal-issue": "cite journal",
   "book-chapter": "cite book",
   "monograph": "cite book",
   "reference-book": "cite book",
@@ -49,10 +81,14 @@ const CROSSREF_TYPE_MAP: Record<string, string> = {
   "report-series": "cite report",
   "dissertation": "cite thesis",
   "posted-content": "cite web",
+  "dataset": "cite web",
+  "standard": "cite web",
+  "peer-review": "cite journal",
+  "other": "cite web",
 };
 
 function crossrefTypeToCite(type: string): string | null {
-  return CROSSREF_TYPE_MAP[type] || null;
+  return CROSSREF_TYPE_MAP[type] || "cite web";
 }
 
 function fmtCrossrefDate(parts: number[]): string {
@@ -70,6 +106,12 @@ function fmtAuthors(authors: { given?: string; family?: string }[]): string {
   }).filter(Boolean).join("; ");
 }
 
+const CORE_FIELDS = ["title", "date", "journal", "author", "author1", "publisher", "volume", "issue", "pages", "doi", "issn"];
+
+function hasAllCoreFields(params: Record<string, string>): boolean {
+  return CORE_FIELDS.every(f => params[f]?.trim());
+}
+
 export async function expandCitation(
   citation: { template: string; params: Record<string, string>; raw: string },
   options: { templateType?: string; force?: boolean; mode?: "incremental" | "force" }
@@ -78,6 +120,8 @@ export async function expandCitation(
   const changes: string[] = [];
   const force = options.force || options.mode === "force";
   const fill = (k: string) => force || !params[k]?.trim();
+
+  if (!force && hasAllCoreFields(params)) return { params, changes };
 
   let doi = params.doi?.trim() || null;
   if (!doi && params.url) {
@@ -89,6 +133,8 @@ export async function expandCitation(
   const arxiv = params.arxiv?.trim() || null;
   const rawIsbn = params.isbn?.trim() || null;
   const isbn = rawIsbn ? fixIsbn(rawIsbn) : null;
+
+  const wikiLang = detectWikiLanguage();
 
   if (doi) {
     const data = await fetchCrossref(doi) || await fetchDataCite(doi);
@@ -113,6 +159,14 @@ export async function expandCitation(
       if (Array.isArray(extra.subject) && extra.subject.length > 0 && fill("subject")) {
         const subs = extra.subject.slice(0, 5).join("; ");
         if (subs) { params.subject = subs; changes.push("expanded-subject"); }
+      }
+      const dcData = data as DataCiteResult;
+      if (dcData.language && !params.language && wikiLang !== "en") {
+        const normalized = normalizeLanguageCode(dcData.language);
+        if (normalized && normalized !== wikiLang) {
+          params.language = normalized;
+          changes.push("expanded-language");
+        }
       }
     }
 
@@ -144,6 +198,13 @@ export async function expandCitation(
       const ext = data as any;
       if (ext.pubdate && fill("date")) { params.date = normalizeDate(ext.pubdate); changes.push("expanded-date"); }
       if (ext.elocationid && fill("pages")) { params.pages = ext.elocationid; changes.push("expanded-pages"); }
+      if (data.lang && !params.language && wikiLang !== "en") {
+        const normalized = normalizeLanguageCode(data.lang);
+        if (normalized && normalized !== wikiLang) {
+          params.language = normalized;
+          changes.push("expanded-language");
+        }
+      }
     }
   }
 

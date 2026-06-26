@@ -11,6 +11,7 @@ export interface StorageSettings {
   create_archive?: boolean;
   strip_issn?: boolean;
   rename_ref_names?: boolean;
+  skip_org_authors?: boolean;
   spacing_style?: string;
   crossref_email?: string;
   ncbi_api_key?: string;

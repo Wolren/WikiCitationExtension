@@ -27,6 +27,29 @@ const FORMATS: DateFormat[] = [
     },
   },
   {
+    pattern: /^(\d{4})-(\d{1,2})-(\d{1,2})$/,
+    format: ([, y, m, d]) => {
+      const paddedM = String(parseInt(m, 10)).padStart(2, "0");
+      const month = MONTHS_SHORT[paddedM];
+      return month ? `${parseInt(d, 10)} ${month} ${y}` : null;
+    },
+  },
+  {
+    pattern: /^(\d{4})-(\d{1})$/,
+    format: ([, y, m]) => {
+      const paddedM = String(parseInt(m, 10)).padStart(2, "0");
+      const month = MONTHS_SHORT[paddedM];
+      return month ? `${month} ${y}` : null;
+    },
+  },
+  {
+    pattern: /^(\d{4})-(\d{2})-(\d{2})T/,
+    format: ([, y, m, d]) => {
+      const month = MONTHS_SHORT[m];
+      return month ? `${parseInt(d, 10)} ${month} ${y}` : null;
+    },
+  },
+  {
     pattern: /^(\d{4})-(\d{2})$/,
     format: ([, y, m]) => {
       const month = MONTHS_SHORT[m];

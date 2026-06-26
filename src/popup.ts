@@ -20,6 +20,7 @@ const DEFAULTS: StorageSettings = {
   strip_issn: false,
   rename_ref_names: false,
   spacing_style: "",
+  skip_org_authors: true,
   crossref_email: "",
   ncbi_api_key: "",
   semantic_scholar_api_key: "",
@@ -91,6 +92,7 @@ async function collectSettings(): Promise<StorageSettings> {
     strip_issn: checked("strip_issn"),
     rename_ref_names: checked("rename_ref_names"),
     spacing_style: val("spacing_style"),
+    skip_org_authors: checked("skip_org_authors"),
     crossref_email: val("crossref_email"),
     ncbi_api_key: val("ncbi_api_key"),
     semantic_scholar_api_key: val("semantic_scholar_api_key"),
@@ -117,6 +119,7 @@ function loadSettings(s: Partial<StorageSettings>): void {
   setChecked("strip_issn", !!s.strip_issn);
   setChecked("rename_ref_names", !!s.rename_ref_names);
   setVal("spacing_style", s.spacing_style || "");
+  setChecked("skip_org_authors", !!s.skip_org_authors);
   setVal("crossref_email", s.crossref_email || "");
   setVal("ncbi_api_key", s.ncbi_api_key || "");
   setVal("semantic_scholar_api_key", s.semantic_scholar_api_key || "");
@@ -147,7 +150,7 @@ const SETTINGS_SCHEMA: Record<string, string> = {
   modules: 'string', force: 'boolean', ref_names: 'boolean', auto_update: 'boolean',
   author_style: 'string', refresh_authors: 'boolean', max_authors: 'number',
   ids_to_fetch: 'string', force_archive_all: 'boolean', create_archive: 'boolean',
-  strip_issn: 'boolean', rename_ref_names: 'boolean', spacing_style: 'string',
+  strip_issn: 'boolean', rename_ref_names: 'boolean', skip_org_authors: 'boolean', spacing_style: 'string',
   crossref_email: 'string', ncbi_api_key: 'string', semantic_scholar_api_key: 'string',
 };
 
@@ -203,6 +206,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   watch("force_archive_all");
   watch("create_archive");
   watch("strip_issn");
+  watch("skip_org_authors");
   watch("spacing_style");
   watch("crossref_email", "input");
   watch("ncbi_api_key", "input");

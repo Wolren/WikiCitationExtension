@@ -2,8 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   findCitations,
   parseParams,
-  renderCitation,
-  applyRenames,
   extractDoiFromUrl,
   isValidDoi,
   detectCitationType,
@@ -79,38 +77,6 @@ describe("parseParams", () => {
     const result = parseParams("| title = {{lang|fr|Test}} | date = 2024");
     expect(result.title).toBe("{{lang|fr|Test}}");
     expect(result.date).toBe("2024");
-  });
-});
-
-describe("renderCitation", () => {
-  it("renders with params", () => {
-    const result = renderCitation("cite journal", { title: "Test" });
-    expect(result).toContain("cite journal");
-    expect(result).toContain("title = Test");
-    expect(result).not.toMatch(/\s+}}$/);
-  });
-
-  it("renders without params", () => {
-    const result = renderCitation("cite journal", {});
-    expect(result).toBe("{{cite journal}}");
-  });
-});
-
-describe("applyRenames", () => {
-  it("renames a parameter", () => {
-    const result = applyRenames("| old = value", { old: "new" });
-    expect(result).toContain("| new = value");
-    expect(result).not.toContain("old");
-  });
-
-  it("handles swap when both exist", () => {
-    const result = applyRenames("| a = 1 | b = 2", { a: "b" });
-    expect(result).toContain("b = 1");
-  });
-
-  it("no-op for empty renames", () => {
-    const result = applyRenames("| title = Test", {});
-    expect(result).toBe("| title = Test");
   });
 });
 

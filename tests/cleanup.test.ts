@@ -1,5 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { cleanupCitation, checkEssentialParams, cleanupCitationBody, detectDuplicates, fixIsbn, addArchiveUrls } from "../src/lib/cleanup";
+
+vi.mock("../src/lib/api", () => ({
+  checkWayback: vi.fn(),
+  headUrl: vi.fn(),
+}));
+import { checkWayback, headUrl } from "../src/lib/api";
 
 describe("cleanupCitation", () => {
   it("removes empty params", () => {
@@ -241,6 +247,10 @@ describe("fixIsbn", () => {
 });
 
 describe("addArchiveUrls", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("skips archiving when doi is present", async () => {
     const result = await addArchiveUrls({ url: "https://example.com", doi: "10.1000/test" }, false);
     expect(result.changes).toHaveLength(0);
@@ -251,8 +261,50 @@ describe("addArchiveUrls", () => {
     expect(result.changes).toHaveLength(0);
   });
 
-  it("skips archiving when archive-url already exists", async () => {
+  it("skips archiving when archive-url and url-status already exist", async () => {
+    const result = await addArchiveUrls({ url: "https://example.com", "archive-url": "https://archive.org/123", "url-status": "live" }, false);
+    expect(result.changes).toHaveLength(0);
+  });
+
+  it("adds url-status when archive-url exists but url-status missing", async () => {
+    vi.mocked(headUrl).mockResolvedValueOnce(200);
     const result = await addArchiveUrls({ url: "https://example.com", "archive-url": "https://archive.org/123" }, false);
+    expect(result.changes).toContain("archive-added");
+    expect(result.params["url-status"]).toBe("live");
+  });
+
+  it("sets url-status=live when original URL is accessible", async () => {
+    vi.mocked(checkWayback).mockResolvedValueOnce({
+      archived_snapshots: { closest: { url: "https://web.archive.org/web/1/http://example.com", timestamp: "20240101000000", status: "200" } },
+    });
+    vi.mocked(headUrl).mockResolvedValueOnce(200);
+    const result = await addArchiveUrls({ url: "https://example.com" }, false);
+    expect(result.changes).toContain("archive-added");
+    expect(result.params["url-status"]).toBe("live");
+  });
+
+  it("sets url-status=dead when original URL is unreachable", async () => {
+    vi.mocked(checkWayback).mockResolvedValueOnce({
+      archived_snapshots: { closest: { url: "https://web.archive.org/web/1/http://example.com", timestamp: "20240101000000", status: "200" } },
+    });
+    vi.mocked(headUrl).mockResolvedValueOnce(404);
+    const result = await addArchiveUrls({ url: "https://example.com" }, false);
+    expect(result.changes).toContain("archive-added");
+    expect(result.params["url-status"]).toBe("dead");
+  });
+
+  it("preserves existing url-status when adding archive", async () => {
+    vi.mocked(checkWayback).mockResolvedValueOnce({
+      archived_snapshots: { closest: { url: "https://web.archive.org/web/1/http://example.com", timestamp: "20240101000000", status: "200" } },
+    });
+    const result = await addArchiveUrls({ url: "https://example.com", "url-status": "dead" }, false);
+    expect(result.changes).toContain("archive-added");
+    expect(result.params["url-status"]).toBe("dead");
+  });
+
+  it("skips archive when Wayback returns no snapshot", async () => {
+    vi.mocked(checkWayback).mockResolvedValueOnce(null);
+    const result = await addArchiveUrls({ url: "https://example.com" }, false);
     expect(result.changes).toHaveLength(0);
   });
 });
@@ -336,6 +388,87 @@ describe("cleanupCitation - new rules", () => {
       title: "Test",
       date: "2024",
     }, { templateType: "cite journal" });
+    expect(result.params.work).toBeUndefined();
+    expect(result.changes).toContain("periodical-conflict");
+  });
+
+  it("removes magazine from cite web", () => {
+    const result = cleanupCitation({
+      magazine: "Wired",
+      url: "http://example.com",
+      title: "Test",
+      date: "2024",
+    }, { templateType: "cite web" });
+    expect(result.params.magazine).toBeUndefined();
+    expect(result.changes).toContain("periodical-conflict");
+  });
+
+  it("converts work to website for cite web", () => {
+    const result = cleanupCitation({
+      work: "My Site",
+      url: "http://example.com",
+      title: "Test",
+      date: "2024",
+    }, { templateType: "cite web" });
+    expect(result.params.website).toBe("My Site");
+    expect(result.params.work).toBeUndefined();
+    expect(result.changes).toContain("periodical-conflict");
+    expect(result.changes).toContain("work-to-website");
+  });
+
+  it("removes magazine from cite journal", () => {
+    const result = cleanupCitation({
+      magazine: "Wired",
+      title: "Test",
+      date: "2024",
+      journal: "Science",
+    }, { templateType: "cite journal" });
+    expect(result.params.magazine).toBeUndefined();
+    expect(result.changes).toContain("periodical-conflict");
+  });
+
+  it("removes newspaper from cite journal", () => {
+    const result = cleanupCitation({
+      newspaper: "The Times",
+      title: "Test",
+      date: "2024",
+      journal: "Nature",
+    }, { templateType: "cite journal" });
+    expect(result.params.newspaper).toBeUndefined();
+    expect(result.changes).toContain("periodical-conflict");
+  });
+
+  it("converts work to website for cite news", () => {
+    const result = cleanupCitation({
+      work: "News Source",
+      url: "http://example.com",
+      title: "Test",
+      date: "2024",
+    }, { templateType: "cite news" });
+    expect(result.params.website).toBe("News Source");
+    expect(result.params.work).toBeUndefined();
+    expect(result.changes).toContain("periodical-conflict");
+    expect(result.changes).toContain("work-to-website");
+  });
+
+  it("removes journal from cite magazine", () => {
+    const result = cleanupCitation({
+      journal: "Science",
+      magazine: "Wired",
+      title: "Test",
+      date: "2024",
+    }, { templateType: "cite magazine" });
+    expect(result.params.journal).toBeUndefined();
+    expect(result.changes).toContain("periodical-conflict");
+  });
+
+  it("removes work from cite magazine", () => {
+    const result = cleanupCitation({
+      work: "My Work",
+      magazine: "Wired",
+      title: "Test",
+      date: "2024",
+    }, { templateType: "cite magazine" });
     expect(result.params.work).toBeUndefined();
     expect(result.changes).toContain("periodical-conflict");
   });
@@ -519,6 +652,47 @@ describe("cleanupCitation - new rules", () => {
       date: "2024",
     }, { templateType: "citation" });
     expect(result.newTemplateType).toBe("cite thesis");
+  });
+
+  it("fixes vauthors trailing periods", () => {
+    const result = cleanupCitation({
+      vauthors: "Benezech M., DeWitte J., Etcheparre JJ",
+      title: "Test",
+      date: "2024",
+    });
+    expect(result.params.vauthors).toBe("Benezech M, DeWitte J, Etcheparre JJ");
+    expect(result.changes).toContain("fixed-vauthors-punctuation");
+  });
+
+  it("does not modify clean vauthors", () => {
+    const result = cleanupCitation({
+      vauthors: "Smith JA, Doe JB",
+      title: "Test",
+      date: "2024",
+    });
+    expect(result.params.vauthors).toBe("Smith JA, Doe JB");
+    expect(result.changes).not.toContain("fixed-vauthors-punctuation");
+  });
+
+  it("preserves periods in last field (normal style)", () => {
+    const result = cleanupCitation({
+      last: "Benezech M.",
+      title: "Test",
+      date: "2024",
+    });
+    expect(result.params.last).toBe("Benezech M.");
+    expect(result.changes).not.toContain("fixed-author-punctuation");
+  });
+
+  it("preserves periods in first field (normal style)", () => {
+    const result = cleanupCitation({
+      last: "Smith",
+      first: "John A.",
+      title: "Test",
+      date: "2024",
+    });
+    expect(result.params.first).toBe("John A.");
+    expect(result.changes).not.toContain("fixed-author-punctuation");
   });
 
   it("missing-url warning for cite web", () => {

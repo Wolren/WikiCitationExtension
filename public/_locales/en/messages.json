@@ -35,6 +35,7 @@
   "optionStyleVancouver": { "message": "Vancouver (vauthors)" },
   "labelRefreshAuthors": { "message": "Refresh full names from APIs" },
   "labelMax": { "message": "Max:" },
+  "labelSkipOrgAuthors": { "message": "Skip organization authors (keep as author, don't convert to vauthors)" },
 
   "sectionArchiveOptions": { "message": "Archive options" },
   "labelForceArchiveAll": { "message": "Force archive all types" },

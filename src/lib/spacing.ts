@@ -54,6 +54,8 @@ export function formatCitationBody(
   if (style === "compact") {
     return entries.map(([k, v]) => `|${k}=${v}`).join(" ");
   }
-
+  if (style === "wide") {
+    return entries.map(([k, v]) => ` | ${k} = ${v}`).join("").trimStart();
+  }
   return entries.map(([k, v]) => `| ${k} = ${v}`).join(" ");
 }

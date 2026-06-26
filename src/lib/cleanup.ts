@@ -1,4 +1,4 @@
-import { checkWayback } from "./api";
+import { checkWayback, headUrl } from "./api";
 import { detectCitationType } from "./wikitext";
 import { hyphenate } from "isbn3";
 
@@ -13,6 +13,8 @@ const TYPO_MAP: Record<string, string> = {
 const NONE_VALUES = new Set(["none", "n/a", "-"]);
 
 const VALID_URL_STATUSES = new Set(["live", "dead", "unfit", "usurped", "bot: unknown"]);
+
+const URL_FIELDS = ["url", "archive-url", "chapter-url", "conference-url", "article-url"];
 
 const DEPRECATED_PARAMS = ["month", "day", "coauthors", "co-author"];
 
@@ -118,14 +120,26 @@ function enforcePeriodicalRules(p: Record<string, string>, tt: string | undefine
 
   if (p.isbn && p.work && tt !== "citation") { delete p.work; changes.push("work-with-isbn"); }
 
+  const periodicalFields = ["journal", "magazine", "newspaper"] as const;
+
   let conflict = false;
   if (tt === "cite web") {
-    if (p.journal) { delete p.journal; conflict = true; }
-    if (p.newspaper) { delete p.newspaper; conflict = true; }
+    for (const f of periodicalFields) {
+      if (p[f]) { delete p[f]; conflict = true; }
+    }
+    if (p.work) { p.website = p.work; delete p.work; changes.push("work-to-website"); conflict = true; }
   } else if (tt === "cite journal") {
     if (p.work) { delete p.work; conflict = true; }
+    if (p.magazine) { delete p.magazine; conflict = true; }
+    if (p.newspaper) { delete p.newspaper; conflict = true; }
   } else if (tt === "cite news") {
     if (p.journal) { delete p.journal; conflict = true; }
+    if (p.magazine) { delete p.magazine; conflict = true; }
+    if (p.work) { p.website = p.work; delete p.work; changes.push("work-to-website"); conflict = true; }
+  } else if (tt === "cite magazine") {
+    if (p.work) { delete p.work; conflict = true; }
+    if (p.journal) { delete p.journal; conflict = true; }
+    if (p.newspaper) { delete p.newspaper; conflict = true; }
   }
   if (conflict) changes.push("periodical-conflict");
 
@@ -151,11 +165,12 @@ function removeConflictingParams(p: Record<string, string>, changes: string[]): 
   if (p.page && p.pages) { delete p.pages; changes.push("page-pages-conflict"); }
   if (p.year && p.date) { delete p.year; changes.push("year-date-conflict"); }
   if (p["access-date"] && !p.url) { delete p["access-date"]; changes.push("orphan-access-date"); }
+  if (p["archive-date"] && !p["archive-url"]) { delete p["archive-date"]; changes.push("orphan-archive-date"); }
   if (p["doi-broken-date"] && !p.doi) { delete p["doi-broken-date"]; changes.push("orphan-doi-broken-date"); }
 }
 
 function flagExternalLinks(p: Record<string, string>, changes: string[]): void {
-  const skipKeys = new Set(["url", "doi", "isbn", "archive-url", "chapter-url"]);
+  const skipKeys = new Set([...URL_FIELDS, "doi", "isbn", "pmc", "arxiv", "bibcode"]);
   for (const [k, v] of Object.entries(p)) {
     if (!skipKeys.has(k) && /^https?:\/\//i.test(v)) { changes.push("external-link"); break; }
   }
@@ -170,7 +185,7 @@ function fixNbsp(p: Record<string, string>, changes: string[]): void {
 }
 
 function fixUrlScheme(p: Record<string, string>, changes: string[]): void {
-  for (const k of ["url", "archive-url", "chapter-url"]) {
+  for (const k of URL_FIELDS) {
     if (p[k] && !/^https?:\/\//i.test(p[k])) {
       p[k] = "https://" + p[k];
       changes.push("fixed-url-scheme-" + k);
@@ -179,7 +194,7 @@ function fixUrlScheme(p: Record<string, string>, changes: string[]): void {
 }
 
 function fixUrlSpaces(p: Record<string, string>, changes: string[]): void {
-  for (const k of ["url", "archive-url", "chapter-url", "doi"]) {
+  for (const k of [...URL_FIELDS, "doi"]) {
     if (p[k] && p[k].includes(" ")) {
       p[k] = p[k].replace(/\s+/g, "%20");
       changes.push("fixed-url-spaces-" + k);
@@ -195,9 +210,6 @@ function checkAuthorNames(p: Record<string, string>, changes: string[]): void {
     }
   }
 }
-
-const MONTH_NAMES = new Set(["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december",
-  "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]);
 
 function validateDateRanges(p: Record<string, string>, changes: string[]): void {
   const dateStr = p.date || "";
@@ -219,9 +231,13 @@ function validateDateRanges(p: Record<string, string>, changes: string[]): void 
 }
 
 function warnMissingRequired(p: Record<string, string>, tt: string | undefined, changes: string[]): void {
-  if (tt === "cite web" && !p.url) changes.push("missing-url");
+  if ((tt === "cite web" || tt === "cite news" || tt === "cite magazine") && !p.url) changes.push("missing-url");
   if (tt === "cite book" && !p.publisher) changes.push("missing-publisher");
   if (tt === "cite journal" && !p.journal && !p.work) changes.push("missing-journal");
+  if (tt === "cite encyclopedia" && !p.encyclopedia) changes.push("missing-encyclopedia");
+  if (tt === "cite conference" && !p.booktitle && !p.conference) changes.push("missing-conference");
+  if (tt === "cite thesis" && !p.school) changes.push("missing-school");
+  if (tt === "cite report" && !p.publisher) changes.push("missing-publisher");
   if (p.url && !/^https?:\/\//i.test(p.url)) changes.push("url-missing-scheme");
 }
 
@@ -241,6 +257,7 @@ function detectOrphanedLinks(p: Record<string, string>, changes: string[]): void
   if (p["author-link"] && !p.author && !p.last && !p.last1) changes.push("orphan-author-link");
   if (p["translator-link"] && !p.translator) changes.push("orphan-translator-link");
   if (p["series-link"] && !p.series) changes.push("orphan-series-link");
+  if (p["contributor-link"] && !p.contributor) changes.push("orphan-contributor-link");
 }
 
 function normalizeAllValues(p: Record<string, string>, changes: string[]): void {
@@ -277,17 +294,25 @@ function detectQuoteWithoutTitle(p: Record<string, string>, changes: string[]): 
 function detectLanguageIssues(p: Record<string, string>, changes: string[]): void {
   if (p.language) {
     const lang = p.language.toLowerCase();
-    const knownEnglish = ["en", "english", "en-us", "en-gb"];
-    if (knownEnglish.includes(lang)) {
+    // CS1 module suppresses display for any English code (en, en-US, en-GB, etc.)
+    // per "the language in which the source is written, if not English"
+    if (lang === "en" || lang === "english" || lang.startsWith("en-")) {
       delete p.language;
       changes.push("redundant-english-language");
     }
   }
 }
 
-function warnMissingFields(p: Record<string, string>, tt: string | undefined, changes: string[]): void {
-  if (tt === "cite web" && !p.url) changes.push("missing-url");
-  if (tt === "cite book" && !p.publisher) changes.push("missing-publisher");
+function fixVauthors(p: Record<string, string>, changes: string[]): void {
+  if (p.vauthors) {
+    let clean = p.vauthors.replace(/\.(?=[,\s]|$)/g, "");
+    clean = clean.replace(/\b([A-Z])\s+(?=[A-Z](?:,|\s|$))/g, "$1");
+    clean = clean.replace(/\b([A-Z]{2})[A-Z]+\b/g, "$1");
+    if (clean !== p.vauthors) {
+      p.vauthors = clean;
+      changes.push("fixed-vauthors-punctuation");
+    }
+  }
 }
 
 function detectTypeAndRename(
@@ -353,6 +378,7 @@ export function cleanupCitation(
   detectDeprecatedRef(p, changes);
   detectQuoteWithoutTitle(p, changes);
   detectLanguageIssues(p, changes);
+  fixVauthors(p, changes);
   warnMissingRequired(p, tt, changes);
 
   return { params: p, changes, ...detectTypeAndRename(p, tt, hadWork) };
@@ -370,7 +396,11 @@ export function checkEssentialParams(params: Record<string, string>): string[] {
 }
 
 export function cleanupCitationBody(body: string): string {
-  return body.replace(/\|{2,}/g, "|");
+  return body
+    .replace(/\|{2,}/g, "|")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 export function detectDuplicates(citations: { params: Record<string, string> }[]): string[] {
@@ -399,7 +429,15 @@ export async function addArchiveUrls(params: Record<string, string>, forceAll: b
   const changes: string[] = [];
   if (result.url) {
     if (!forceAll && result.doi) return { params: result, changes };
-    if (result["archive-url"]) return { params: result, changes };
+    if (result["archive-url"] && result["url-status"]) return { params: result, changes };
+    if (result["archive-url"]) {
+      if (!result["url-status"]) {
+        const status = await headUrl(result.url);
+        result["url-status"] = status === null ? "live" : status < 400 ? "live" : "dead";
+        changes.push("archive-added");
+      }
+      return { params: result, changes };
+    }
     const wayback = await checkWayback(result.url);
     if (wayback?.archived_snapshots?.closest?.url) {
       const snap = wayback.archived_snapshots.closest;
@@ -407,6 +445,14 @@ export async function addArchiveUrls(params: Record<string, string>, forceAll: b
       if (snap.timestamp) {
         const ts = snap.timestamp;
         result["archive-date"] = `${ts.slice(0, 4)}-${ts.slice(4, 6)}-${ts.slice(6, 8)}`;
+      }
+      if (!result["url-status"]) {
+        const status = await headUrl(result.url);
+        if (status === null) {
+          result["url-status"] = "live";
+        } else {
+          result["url-status"] = status < 400 ? "live" : "dead";
+        }
       }
       changes.push("archive-added");
     }
