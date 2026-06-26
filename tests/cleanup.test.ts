@@ -112,6 +112,24 @@ describe("cleanupCitation", () => {
     expect(params.title).toBe("Test Article");
     expect(changes).toHaveLength(0);
   });
+
+  it("preserves title ending with period", () => {
+    const { params, changes } = cleanupCitation({
+      title: "The End.",
+      doi: "10.1000/test",
+    });
+    expect(params.title).toBe("The End.");
+    expect(changes).not.toContain("title-trailing-period");
+  });
+
+  it("preserves title with abbreviation dots", () => {
+    const { params, changes } = cleanupCitation({
+      title: "U.S.A. Economy",
+      doi: "10.1000/test",
+    });
+    expect(params.title).toBe("U.S.A. Economy");
+    expect(changes).not.toContain("title-trailing-period");
+  });
 });
 
 describe("checkEssentialParams", () => {
@@ -267,7 +285,7 @@ describe("cleanupCitation - new rules", () => {
     expect(changes).not.toContain("location-no-publisher");
   });
 
-  it("removes work-with-isbn for books", () => {
+  it("removes work-with-isbn for non-citation templates", () => {
     const result = cleanupCitation({
       isbn: "9780306406157",
       work: "Some Journal",
@@ -276,6 +294,18 @@ describe("cleanupCitation - new rules", () => {
     });
     expect(result.params.work).toBeUndefined();
     expect(result.changes).toContain("work-with-isbn");
+  });
+
+  it("preserves work for citation templates with isbn (available for rename)", () => {
+    const result = cleanupCitation({
+      isbn: "9780306406157",
+      work: "A Book",
+      title: "Chapter 1",
+      date: "2024",
+    }, { templateType: "citation" });
+    expect(result.params.work).toBe("A Book");
+    expect(result.changes).not.toContain("work-with-isbn");
+    expect(result.renameParams?.["work"]).toBe("title");
   });
 
   it("removes journal from cite web", () => {

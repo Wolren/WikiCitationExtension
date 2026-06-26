@@ -1,0 +1,271 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
+// Stub browser APIs before importing popup
+const mockStorage: Record<string, unknown> = {};
+const mockGetMessage = vi.fn((key: string) => {
+  const msgs: Record<string, string> = {
+    appName: "WikiCitationFixer",
+    appSubtitle: "Self-contained citation fixing",
+    btnResetDefaults: "Reset defaults",
+    sectionModules: "Modules",
+    moduleExpand: "Expand",
+    moduleExpandDesc: "Fill missing fields",
+    labelStyle: "Style:",
+    labelFetchIds: "Fetch IDs",
+    sectionApiKeys: "API keys",
+    labelCrossRefEmail: "CrossRef email:",
+    labelNcbiKey: "NCBI API key:",
+    labelSemanticScholarKey: "Semantic Scholar API key:",
+    btnCycleDock: "Cycle dock corner",
+    btnMinimize: "Minimize",
+    btnClose: "Close",
+    notifNoEditor: "No editor found",
+    notifNoSourceTab: "Could not switch to source editor",
+    notifNoTitle: "Could not determine page title",
+    notifFetchFailed: "Failed to fetch wikitext",
+    notifEmptyEditor: "Editor is empty",
+    notifCancelled: "Processing was cancelled",
+    notifNoChanges: "No citation changes needed",
+    notifFetching: "Fetching wikitext...",
+    btnFixCitations: "Fix citations",
+    btnRetry: "Retry",
+    btnWorking: "Working...",
+    btnCopyWikitext: "Copy wikitext",
+    btnOpenEditor: "Open editor",
+    progressScanning: "Scanning citations...",
+    progressProcessing: "Processing $1–$2 of $3...",
+    progressProcessed: "Processed $1 of $2 citations",
+    progressApplying: "Applying changes...",
+    progressDone: "Done",
+    progressNoCitations: "No citations found",
+    statsChanged: "$1 citation changed",
+    statsChangedPlural: "$1 citations changed",
+    statsExpanded: "Expanded",
+    statsCleaned: "Cleaned",
+    statsDates: "Dates",
+    statsAuthors: "Authors",
+    statsIds: "IDs",
+    statsArchive: "Archive",
+    statsSorted: "Sorted",
+    statsRefNames: "Ref names",
+    errorProcessing: "Error: $1",
+    copiedToClipboard: "Copied!",
+  };
+  return msgs[key] || "";
+});
+const mockBrowser = {
+  storage: {
+    local: {
+      get: vi.fn(async (key: string) => ({ [key]: mockStorage[key] })),
+      set: vi.fn(async (items: Record<string, unknown>) => {
+        for (const [k, v] of Object.entries(items)) mockStorage[k] = v;
+      }),
+    },
+  },
+  i18n: { getMessage: mockGetMessage },
+} as any;
+vi.stubGlobal("browser", mockBrowser);
+
+// Mock Web Crypto
+const mockEncryptResult = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+const mockCrypto = {
+  subtle: {
+    generateKey: vi.fn().mockResolvedValue("mock-key"),
+    exportKey: vi.fn().mockResolvedValue(new Uint8Array(32)),
+    importKey: vi.fn().mockResolvedValue("mock-imported-key"),
+    encrypt: vi.fn().mockResolvedValue(mockEncryptResult.buffer),
+    decrypt: vi.fn().mockResolvedValue(new TextEncoder().encode("decrypted-value").buffer),
+  },
+  getRandomValues: vi.fn((arr: Uint8Array) => { arr.fill(1); return arr; }),
+} as any;
+Object.defineProperty(globalThis, "crypto", { value: mockCrypto });
+
+import "../src/popup";
+
+// Helper to await pending microtasks
+function tick(): Promise<void> {
+  return new Promise(r => setTimeout(r, 0));
+}
+
+beforeEach(() => {
+  mockStorage["wikifix_settings"] = {
+    modules: "expand,cleanup,dates,ids,archive,dedup",
+    force: false,
+    ref_names: false,
+    auto_update: false,
+    author_style: "normal",
+    max_authors: 6,
+    ids_to_fetch: "pmid,pmc,s2cid,qid",
+    spacing_style: "",
+    crossref_email: "",
+    ncbi_api_key: "",
+    semantic_scholar_api_key: "",
+  };
+  mockBrowser.storage.local.get.mockClear();
+  mockBrowser.storage.local.set.mockClear();
+  mockCrypto.subtle.encrypt.mockClear();
+  mockCrypto.subtle.decrypt.mockClear();
+  mockGetMessage.mockClear();
+
+  document.body.innerHTML = `
+    <div class="container">
+      <h2 data-i18n="appName">WikiCitationFixer</h2>
+      <p class="subtitle" data-i18n="appSubtitle">Subtitle</p>
+      <details class="section" open>
+        <summary data-i18n="sectionModules">Modules</summary>
+        <div class="module-list">
+          <label class="module-item"><input type="checkbox" data-module="expand" checked><div><strong data-i18n="moduleExpand">Expand</strong><span data-i18n="moduleExpandDesc">desc</span></div></label>
+          <label class="module-item"><input type="checkbox" data-module="cleanup" checked><div><strong>Cleanup</strong><span>desc</span></div></label>
+          <label class="module-item"><input type="checkbox" data-module="dates" checked><div><strong>Dates</strong><span>desc</span></div></label>
+          <label class="module-item"><input type="checkbox" data-module="authors"><div><strong>Authors</strong><span>desc</span></div></label>
+          <label class="module-item"><input type="checkbox" data-module="ids" checked><div><strong>Enrich IDs</strong><span>desc</span></div></label>
+          <label class="module-item"><input type="checkbox" data-module="sort"><div><strong>Sort</strong><span>desc</span></div></label>
+          <label class="module-item"><input type="checkbox" data-module="archive" checked><div><strong>Archive</strong><span>desc</span></div></label>
+          <label class="module-item"><input type="checkbox" data-module="dedup" checked><div><strong>Dedup</strong><span>desc</span></div></label>
+          <label class="module-item"><input type="checkbox" data-module="sfn"><div><strong>SFN</strong><span>desc</span></div></label>
+        </div>
+      </details>
+      <div class="opt-row"><select id="author_style"><option value="normal">Normal</option><option value="vancouver">Vancouver</option></select></div>
+      <div><input id="refresh_authors" type="checkbox"></div>
+      <div><input id="max_authors" type="number" value="6"></div>
+      <div><input id="force_archive_all" type="checkbox"></div>
+      <div><input id="create_archive" type="checkbox"></div>
+      <div><select id="spacing_style"><option value="">Off</option><option value="wide">Wide</option></select></div>
+      <div><input id="strip_issn" type="checkbox"></div>
+      <div class="fetch-ids">
+        <label class="chip-item"><input type="checkbox" data-id="issn"> ISSN</label>
+        <label class="chip-item"><input type="checkbox" data-id="pmid" checked> PMID</label>
+        <label class="chip-item"><input type="checkbox" data-id="pmc" checked> PMC</label>
+        <label class="chip-item"><input type="checkbox" data-id="s2cid" checked> S2CID</label>
+        <label class="chip-item"><input type="checkbox" data-id="qid" checked> QID</label>
+      </div>
+      <div><input id="crossref_email" type="text"></div>
+      <div><input id="ncbi_api_key" type="password"></div>
+      <div><input id="semantic_scholar_api_key" type="password"></div>
+      <div><input id="auto_update" type="checkbox"></div>
+      <div><input id="rename_ref_names" type="checkbox"></div>
+      <div><input id="force" type="checkbox"></div>
+      <button id="resetBtn" class="btn-reset">Reset defaults</button>
+    </div>`;
+});
+
+afterEach(() => {
+  document.body.innerHTML = "";
+});
+
+describe("popup initialization", () => {
+  it("localizes HTML elements on DOMContentLoaded", async () => {
+    document.dispatchEvent(new Event("DOMContentLoaded"));
+    await tick();
+
+    const title = document.querySelector("h2");
+    expect(title!.textContent).toBe("WikiCitationFixer");
+    const subtitle = document.querySelector(".subtitle");
+    expect(subtitle!.textContent).toBe("Self-contained citation fixing");
+  });
+
+  it("loads settings and populates checkboxes", async () => {
+    mockStorage["wikifix_settings"] = {
+      modules: "expand,cleanup",
+      force: false,
+      ref_names: false,
+      auto_update: false,
+      author_style: "normal",
+      max_authors: 6,
+      ids_to_fetch: "pmid",
+      spacing_style: "wide",
+    };
+
+    document.dispatchEvent(new Event("DOMContentLoaded"));
+    await tick();
+
+    const expandCb = document.querySelector('[data-module="expand"]') as HTMLInputElement;
+    expect(expandCb.checked).toBe(true);
+    const cleanupCb = document.querySelector('[data-module="cleanup"]') as HTMLInputElement;
+    expect(cleanupCb.checked).toBe(true);
+    const sfnCb = document.querySelector('[data-module="sfn"]') as HTMLInputElement;
+    expect(sfnCb.checked).toBe(false);
+  });
+
+  it("uses defaults when no saved settings", async () => {
+    delete mockStorage["wikifix_settings"];
+
+    document.dispatchEvent(new Event("DOMContentLoaded"));
+    await tick();
+
+    const expandCb = document.querySelector('[data-module="expand"]') as HTMLInputElement;
+    expect(expandCb.checked).toBe(true);
+    const sfnCb = document.querySelector('[data-module="sfn"]') as HTMLInputElement;
+    expect(sfnCb.checked).toBe(false);
+  });
+});
+
+describe("popup saving", () => {
+  it("saves settings when a module checkbox changes", async () => {
+    document.dispatchEvent(new Event("DOMContentLoaded"));
+    await tick();
+
+    const cb = document.querySelector('[data-module="authors"]') as HTMLInputElement;
+    cb.checked = true;
+    cb.dispatchEvent(new Event("change"));
+    await tick();
+
+    expect(mockBrowser.storage.local.set).toHaveBeenCalled();
+    const saved = (mockBrowser.storage.local.set as any).mock.calls.at(-1)[0];
+    expect(saved.wikifix_settings.modules).toContain("authors");
+  });
+
+  it("encrypts API keys before saving", async () => {
+    document.dispatchEvent(new Event("DOMContentLoaded"));
+    await tick();
+
+    // Mock encrypt to return a hex-like value
+    mockCrypto.subtle.encrypt.mockResolvedValue(new Uint8Array(16).buffer);
+
+    const ncbiInput = document.getElementById("ncbi_api_key") as HTMLInputElement;
+    ncbiInput.value = "my-secret-key";
+    ncbiInput.dispatchEvent(new Event("input"));
+    await tick();
+
+    expect(mockCrypto.subtle.encrypt).toHaveBeenCalled();
+  });
+});
+
+describe("popup reset", () => {
+  it("resets to defaults on reset button click", async () => {
+    mockStorage["wikifix_settings"] = {
+      modules: "authors,sfn",
+      force: true,
+      ref_names: true,
+      spacing_style: "wide",
+    };
+
+    document.dispatchEvent(new Event("DOMContentLoaded"));
+    await tick();
+    mockBrowser.storage.local.set.mockClear();
+
+    document.getElementById("resetBtn")!.click();
+    await tick();
+
+    const lastCall = (mockBrowser.storage.local.set as any).mock.calls.at(-1)?.[0];
+    expect(lastCall.wikifix_settings.force).toBe(false);
+    expect(lastCall.wikifix_settings.spacing_style).toBe("");
+    expect(lastCall.wikifix_settings.modules).toBe("expand,cleanup,dates,ids,archive,dedup");
+  });
+
+  it("restores default spacing after reset", async () => {
+    document.dispatchEvent(new Event("DOMContentLoaded"));
+    await tick();
+    mockBrowser.storage.local.set.mockClear();
+
+    const spacingSelect = document.getElementById("spacing_style") as HTMLSelectElement;
+    spacingSelect.value = "wide";
+    spacingSelect.dispatchEvent(new Event("change"));
+    await tick();
+
+    document.getElementById("resetBtn")!.click();
+    await tick();
+
+    expect(spacingSelect.value).toBe("");
+  });
+});

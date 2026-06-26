@@ -32,10 +32,10 @@ if (files.length === 0) {
         };
         const result = await processWikitext(original, settings);
 
-        expect(result.trim()).toBeTruthy();
-        expect(result).not.toContain("<ref><ref");
-        expect(result).not.toContain("<ref >");
-        expect(result.length).toBeGreaterThanOrEqual(original.length * 0.5);
+        expect(result.text.trim()).toBeTruthy();
+        expect(result.text).not.toContain("<ref><ref");
+        expect(result.text).not.toContain("<ref >");
+        expect(result.text.length).toBeGreaterThanOrEqual(original.length * 0.5);
       }, 60000);
     }
   });

@@ -105,6 +105,30 @@ describe("addArchiveFromWayback", () => {
     );
     expect(changes).toHaveLength(0);
   });
+
+  it("sets url-status to live when not already set", async () => {
+    const { params, changes } = await addArchiveFromWayback(
+      { url: "http://example.com" }
+    );
+    expect(params["url-status"]).toBe("live");
+    expect(changes).toContain("archive-added");
+  });
+
+  it("preserves existing url-status", async () => {
+    const { params, changes } = await addArchiveFromWayback(
+      { url: "http://example.com", "url-status": "dead" }
+    );
+    expect(params["url-status"]).toBe("dead");
+    expect(changes).toContain("archive-added");
+  });
+
+  it("preserves existing url-status=live", async () => {
+    const { params, changes } = await addArchiveFromWayback(
+      { url: "http://example.com", "url-status": "live" }
+    );
+    expect(params["url-status"]).toBe("live");
+    expect(changes).toContain("archive-added");
+  });
 });
 
 describe("processArchive", () => {

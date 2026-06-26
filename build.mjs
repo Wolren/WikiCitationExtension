@@ -41,7 +41,7 @@ async function build() {
     format: "iife",
     target: "es2018",
     sourcemap: false,
-    minify: false,
+    minify: true,
     treeShaking: true,
     legalComments: "none",
   });
@@ -65,9 +65,14 @@ async function build() {
   const xpiPath = join(__dirname, "wikifix-extension.xpi");
   try {
     const zip = new JSZip();
-    for (const name of readdirSync(DIST)) {
-      zip.file(name, readFileSync(join(DIST, name)));
-    }
+    (function addDir(dir, base) {
+      for (const name of readdirSync(dir)) {
+        const full = join(dir, name);
+        const entry = join(base, name).replace(/\\/g, "/");
+        if (statSync(full).isDirectory()) addDir(full, entry);
+        else zip.file(entry, readFileSync(full));
+      }
+    })(DIST, "");
     const buf = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
     writeFileSync(zipPath, buf);
     writeFileSync(xpiPath, buf);

@@ -48,8 +48,8 @@ describe("wide format no double spaces", () => {
       "{{cite journal |title=Test |date=2024}}",
       { modules: "cleanup,dates", spacing_style: "wide", force: false, ref_names: false }
     );
-    expect(result).toBe("{{cite journal | title = Test | date = 2024}}");
-    expect(result).not.toMatch(/  \|/);
-    expect(result).not.toMatch(/\|  /);
+    expect(result.text).toBe("{{cite journal | title = Test | date = 2024}}");
+    expect(result.text).not.toMatch(/ {2}\|/);
+    expect(result.text).not.toMatch(/\| {2}/);
   });
 });

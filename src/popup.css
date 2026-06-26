@@ -21,7 +21,12 @@ input[type="text"] {
   border-radius: 2px; font-size: 13px; box-sizing: border-box;
   background: #2d2d2d; color: #e0e0e0;
 }
-input[type="text"]:focus { border-color: #3366cc; outline: none; box-shadow: 0 0 0 1px #3366cc; }
+input[type="text"]:focus, input[type="password"]:focus { border-color: #3366cc; outline: none; box-shadow: 0 0 0 1px #3366cc; }
+input[type="password"] {
+  width: 100%; padding: 7px 8px; border: 1px solid #555;
+  border-radius: 2px; font-size: 13px; box-sizing: border-box;
+  background: #2d2d2d; color: #e0e0e0;
+}
 .wide-input { flex: 1; min-width: 0; }
 select {
   padding: 4px 6px; border: 1px solid #555; border-radius: 2px;

@@ -1,4 +1,5 @@
 import type { StorageSettings } from "./lib/types";
+import { encrypt, decrypt } from "./lib/crypto";
 
 const STORAGE_KEY = "wikifix_settings";
 
@@ -6,7 +7,6 @@ const MODULES = ["expand", "cleanup", "dates", "authors", "ids", "sort", "archiv
 const ID_OPTIONS = ["issn", "pmid", "pmc", "s2cid", "qid"];
 
 const DEFAULTS: StorageSettings = {
-  serverUrl: "",
   modules: "expand,cleanup,dates,ids,archive,dedup",
   force: false,
   ref_names: false,
@@ -25,6 +25,23 @@ const DEFAULTS: StorageSettings = {
   semantic_scholar_api_key: "",
 };
 
+// ── i18n helpers ────────────────────────────────────────────────────
+const SENSITIVE_KEYS = new Set(["crossref_email", "ncbi_api_key", "semantic_scholar_api_key"]);
+
+function localizeHtml(): void {
+  for (const el of document.querySelectorAll("[data-i18n]")) {
+    const key = el.getAttribute("data-i18n")!;
+    const msg = browser.i18n.getMessage(key);
+    if (msg) el.textContent = msg;
+  }
+  for (const el of document.querySelectorAll("[data-i18n-placeholder]")) {
+    const key = el.getAttribute("data-i18n-placeholder")!;
+    const msg = browser.i18n.getMessage(key);
+    if (msg) (el as HTMLInputElement).placeholder = msg;
+  }
+}
+
+// ── DOM helpers ─────────────────────────────────────────────────────
 function val(id: string): string {
   return (document.getElementById(id) as HTMLInputElement).value;
 }
@@ -54,14 +71,13 @@ function setIds(v: string): void {
   }
 }
 
-function collectSettings(): StorageSettings {
+async function collectSettings(): Promise<StorageSettings> {
   const selected: string[] = [];
   for (const mod of MODULES) {
     const cb = document.querySelector(`[data-module="${mod}"]`) as HTMLInputElement | null;
     if (cb && cb.checked) selected.push(mod);
   }
-  return {
-    serverUrl: "",  // self-contained mode
+  const settings: StorageSettings = {
     modules: selected.join(","),
     force: checked("force"),
     ref_names: checked("auto_update"),
@@ -79,6 +95,14 @@ function collectSettings(): StorageSettings {
     ncbi_api_key: val("ncbi_api_key"),
     semantic_scholar_api_key: val("semantic_scholar_api_key"),
   };
+  // Encrypt sensitive fields before saving
+  for (const key of SENSITIVE_KEYS) {
+    const raw = (settings as unknown as Record<string, string>)[key];
+    if (raw) {
+      (settings as unknown as Record<string, string>)[key] = await encrypt(raw);
+    }
+  }
+  return settings;
 }
 
 function loadSettings(s: Partial<StorageSettings>): void {
@@ -104,16 +128,54 @@ function loadSettings(s: Partial<StorageSettings>): void {
   }
 }
 
+// Decrypt settings for display (reverse of collectSettings encryption)
+async function decryptSettingsForDisplay(s: Partial<StorageSettings>): Promise<Partial<StorageSettings>> {
+  const result = { ...s };
+  for (const key of SENSITIVE_KEYS) {
+    const raw = (result as unknown as Record<string, string>)[key];
+    if (raw && raw.length > 32) {
+      const decrypted = await decrypt(raw);
+      if (decrypted !== null) {
+        (result as unknown as Record<string, string>)[key] = decrypted;
+      }
+    }
+  }
+  return result;
+}
+
+const SETTINGS_SCHEMA: Record<string, string> = {
+  modules: 'string', force: 'boolean', ref_names: 'boolean', auto_update: 'boolean',
+  author_style: 'string', refresh_authors: 'boolean', max_authors: 'number',
+  ids_to_fetch: 'string', force_archive_all: 'boolean', create_archive: 'boolean',
+  strip_issn: 'boolean', rename_ref_names: 'boolean', spacing_style: 'string',
+  crossref_email: 'string', ncbi_api_key: 'string', semantic_scholar_api_key: 'string',
+};
+
+function validateSettings(s: Record<string, unknown>): boolean {
+  for (const [key, type] of Object.entries(SETTINGS_SCHEMA)) {
+    if (s[key] !== undefined && typeof s[key] !== type) return false;
+  }
+  return true;
+}
+
 async function save(): Promise<void> {
-  await browser.storage.local.set({ [STORAGE_KEY]: collectSettings() });
+  const settings = await collectSettings();
+  if (!validateSettings(settings as unknown as Record<string, unknown>)) {
+    console.error("[WikiCitationFixer] Invalid settings, not saving");
+    return;
+  }
+  await browser.storage.local.set({ [STORAGE_KEY]: settings });
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+  localizeHtml();
+
   let raw: Record<string, unknown> = {};
   try {
     raw = await browser.storage.local.get(STORAGE_KEY);
   } catch { /* ignore */ }
-  loadSettings((raw[STORAGE_KEY] as Partial<StorageSettings>) || {});
+  const decrypted = await decryptSettingsForDisplay((raw[STORAGE_KEY] as Partial<StorageSettings>) || {});
+  loadSettings(decrypted);
 
   function watch(id: string, event = "change"): void {
     const el = document.getElementById(id);

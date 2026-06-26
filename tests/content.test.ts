@@ -1,7 +1,20 @@
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
 
 // Stub browser API before importing content
-const mockBrowser = { storage: { local: { get: vi.fn(), set: vi.fn() } } } as any;
+const mockGetMessage = vi.fn((k: string) => {
+  const m: Record<string, string> = {
+    statsChanged: "$1 citation changed",
+    statsChangedPlural: "$1 citations changed",
+    progressScanning: "Scanning citations...",
+    progressNoCitations: "No citations found",
+    progressProcessing: "Processing $1–$2 of $3...",
+    progressProcessed: "Processed $1 of $2 citations",
+    progressApplying: "Applying changes...",
+    progressDone: "Done",
+  };
+  return m[k] || k;
+});
+const mockBrowser = { storage: { local: { get: vi.fn(), set: vi.fn() } }, i18n: { getMessage: mockGetMessage } } as any;
 vi.stubGlobal("browser", mockBrowser);
 
 // Stub window.location
@@ -9,8 +22,9 @@ delete (globalThis as any).location;
 (globalThis as any).location = { origin: "https://en.wikipedia.org", pathname: "/wiki/Test_Page" };
 
 import {
+  bracketAwareValue,
   templateTypeFor, formatBody, formatRefName,
-  escapeHtml, escapeRe, processWikitext,
+  escapeHtml, escapeRe, processWikitext, buildPreservedBody,
 } from "../src/content";
 
 const mockFetch = vi.fn();
@@ -101,6 +115,29 @@ describe("escapeRe", () => {
   });
 });
 
+describe("bracketAwareValue", () => {
+  it("treats [[Foo | Bar]] as an atomic value (pipe inside wikilink not a separator)", () => {
+    expect(bracketAwareValue("[[Foo | Bar]]", 0)).toBe("[[Foo | Bar]]");
+  });
+
+  it("handles nested wikilinks [[Foo [[Bar]] Baz]]", () => {
+    expect(bracketAwareValue("[[Foo [[Bar]] Baz]]", 0)).toBe("[[Foo [[Bar]] Baz]]");
+  });
+
+  it("handles template inside wikilink {{[[Foo | Bar]]}}", () => {
+    expect(bracketAwareValue("{{[[Foo | Bar]]}}", 0)).toBe("{{[[Foo | Bar]]}}");
+  });
+
+  it("handles simple wikilink [[Foo]] without pipe", () => {
+    expect(bracketAwareValue("[[Foo]]", 0)).toBe("[[Foo]]");
+  });
+
+  it("stops at pipe outside wikilink, correctly separating next param", () => {
+    // The | inside [[...]] is not a separator; only the | after ]] at depth 0 breaks
+    expect(bracketAwareValue("[[Foo | Bar]] | param = value", 0)).toBe("[[Foo | Bar]] ");
+  });
+});
+
 describe("processWikitext", () => {
   beforeEach(() => {
     // Mock all API calls to return null (no expansion)
@@ -108,13 +145,13 @@ describe("processWikitext", () => {
   });
 
   it("returns empty string unchanged", async () => {
-    const result = await processWikitext("", false);
-    expect(result).toBe("");
+    const result = await processWikitext("", { modules: "expand,cleanup,dates,ids,archive,dedup", force: false, ref_names: false });
+    expect(result.text).toBe("");
   });
 
   it("returns text with no citations unchanged", async () => {
-    const result = await processWikitext("Hello world", false);
-    expect(result).toBe("Hello world");
+    const result = await processWikitext("Hello world", { modules: "expand,cleanup,dates,ids,archive,dedup", force: false, ref_names: false });
+    expect(result.text).toBe("Hello world");
   });
 
   it("returns reformatted but equivalent citation for unchanged content", async () => {
@@ -122,30 +159,31 @@ describe("processWikitext", () => {
       "{{cite journal | title = Test | doi = 10.1000/ct1 | date = 15 March 2024}}",
       { modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" }
     );
-    expect(result).toContain("title = Test");
-    expect(result).toContain("doi = 10.1000/ct1");
-    expect(result).toContain("15 March 2024");
-    expect(result).toContain("{{cite journal");
+    expect(result.text).toContain("title = Test");
+    expect(result.text).toContain("doi = 10.1000/ct1");
+    expect(result.text).toContain("15 March 2024");
+    expect(result.text).toContain("{{cite journal");
   });
 
   it("normalizes date in citation", async () => {
     const result = await processWikitext("{{cite journal |date=2024-03-15 |title=Test}}",
       { modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" }
     );
-    expect(result).toContain("15 March 2024");
+    expect(result.text).toContain("15 March 2024");
   });
 
   it("normalizes spacing in citation", async () => {
     const result = await processWikitext("{{cite journal|title=Test|doi=10.1000/ct2|date=2024}}",
       { modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" }
     );
-    expect(result).toContain("| title = Test");
-    expect(result).toContain("| doi = 10.1000/ct2");
+    expect(result.text).toContain("| title = Test");
+    expect(result.text).toContain("| doi = 10.1000/ct2");
   });
 
   it("applies cleanup changes", async () => {
-    const result = await processWikitext("{{cite journal |title= |doi=10.1000/ct3 |date=2024}}", false);
-    expect(result).not.toContain("| title =");
+    const result = await processWikitext("{{cite journal |title= |doi=10.1000/ct3 |date=2024}}",
+      { modules: "expand,cleanup,dates,ids,archive,dedup", force: false, ref_names: false });
+    expect(result.text).not.toContain("| title =");
   });
 
   it("adds ref name when refNames=true", async () => {
@@ -153,7 +191,7 @@ describe("processWikitext", () => {
       "<ref>{{cite journal |last=Smith |year=2024 |title=Test |doi=10.1000/ct4}}</ref>",
       { ref_names: true, modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" }
     );
-    expect(result).toContain('name="Smith2024"');
+    expect(result.text).toContain('name="Smith2024"');
   });
 
   it("handles duplicate ref names with suffix", async () => {
@@ -161,52 +199,52 @@ describe("processWikitext", () => {
       '<ref>{{cite journal |last=Smith |year=2024 |title=A |doi=10.1000/ct5a}}</ref>' +
       ' <ref>{{cite journal |last=Smith |year=2024 |title=B |doi=10.1000/ct5b}}</ref>';
     const result = await processWikitext(text, { ref_names: true, modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" });
-    expect(result).toContain('name="Smith2024"');
-    expect(result).toContain('name="Smith2024-2"');
+    expect(result.text).toContain('name="Smith2024"');
+    expect(result.text).toContain('name="Smith2024-2"');
   });
 
   it("leaves existing ref names as-is", async () => {
     const text =
       '<ref name="Smith">{{cite journal |last=Smith |year=2024 |title=Test |doi=10.1000/ct6}}</ref>';
     const result = await processWikitext(text, { ref_names: true, modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" });
-    expect(result).toContain('name="Smith"');
-    expect(result).not.toContain('name="Smith2024"');
-    expect(result.match(/<ref/g)?.length).toBe(1); // no double ref
+    expect(result.text).toContain('name="Smith"');
+    expect(result.text).not.toContain('name="Smith2024"');
+    expect(result.text.match(/<ref/g)?.length).toBe(1);
   });
 
   it("renames existing ref names when rename_ref_names is true", async () => {
     const text =
       '<ref name="Smith">{{cite journal |last=Smith |year=2024 |title=Test |doi=10.1000/ct6r}}</ref>';
     const result = await processWikitext(text, { ref_names: true, rename_ref_names: true, modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" });
-    expect(result).toContain('name="Smith2024"');
-    expect(result).not.toContain('name="Smith"');
-    expect(result.match(/<ref/g)?.length).toBe(1);
+    expect(result.text).toContain('name="Smith2024"');
+    expect(result.text).not.toContain('name="Smith"');
+    expect(result.text.match(/<ref/g)?.length).toBe(1);
   });
 
   it("does not double-wrap <ref> when adding name to bare <ref>", async () => {
     const text =
       '<ref>{{cite journal |last=Jones |year=2023 |title=Article |doi=10.1000/ct7}}</ref>';
     const result = await processWikitext(text, { ref_names: true, modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" });
-    expect(result).toContain('name="Jones2023"');
-    expect(result.match(/<ref/g)?.length).toBe(1);
-    expect(result).not.toMatch(/<ref><ref/);
+    expect(result.text).toContain('name="Jones2023"');
+    expect(result.text.match(/<ref/g)?.length).toBe(1);
+    expect(result.text).not.toMatch(/<ref><ref/);
   });
 
   it("does not wrap citations in See also / Further reading sections", async () => {
     const text =
       "==See also==\n\n* {{cite journal |last=King |year=2021 |title=Review |doi=10.1000/ct99}}";
     const result = await processWikitext(text, { ref_names: true, modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" });
-    expect(result).not.toContain("<ref");
-    expect(result).toContain("{{cite journal");
+    expect(result.text).not.toContain("<ref");
+    expect(result.text).toContain("{{cite journal");
   });
 
   it("wraps bare citation in ref name when no <ref> tag exists", async () => {
     const text =
       '{{cite journal |last=Lee |year=2022 |title=Paper |doi=10.1000/ct8}}';
     const result = await processWikitext(text, { ref_names: true, modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" });
-    expect(result).toContain('<ref name="Lee2022">');
-    expect(result).toMatch(/<\/ref>$/);
-    expect(result.match(/<ref/g)?.length).toBe(1);
+    expect(result.text).toContain('<ref name="Lee2022">');
+    expect(result.text).toMatch(/<\/ref>$/);
+    expect(result.text.match(/<ref/g)?.length).toBe(1);
   });
 
   it("processes multiple citations in sequence", async () => {
@@ -214,24 +252,24 @@ describe("processWikitext", () => {
       "{{cite journal |last=Smith|title=A|date=2024-03-15}}" +
       "{{cite web |title=B|date=2024-04-20|url=http://example.com}}";
     const result = await processWikitext(text, { modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" });
-    expect(result).toContain("15 March 2024");
-    expect(result).toContain("20 April 2024");
-    expect(result).toContain("| last = Smith");
-    expect(result).toContain("| url = http://example.com");
+    expect(result.text).toContain("15 March 2024");
+    expect(result.text).toContain("20 April 2024");
+    expect(result.text).toContain("| last = Smith");
+    expect(result.text).toContain("| url = http://example.com");
   });
 
   it("runs cleanup param renames (citation→cite book with isbn)", async () => {
     const text = "{{citation |isbn=9780306406157 |title=My Book |date=2024}}";
-    const result = await processWikitext(text, false);
-    expect(result).toContain("cite book");
+    const result = await processWikitext(text, { modules: "expand,cleanup,dates,ids,archive,dedup", force: false, ref_names: false });
+    expect(result.text).toContain("cite book");
   });
 
   it("removes empty params via cleanup", async () => {
     const result = await processWikitext(
       "{{cite journal |title= |doi=10.1000/ct7 |date=2024}}",
-      false
+      { modules: "expand,cleanup,dates,ids,archive,dedup", force: false, ref_names: false }
     );
-    expect(result).not.toContain("title =");
+    expect(result.text).not.toContain("title =");
   });
 
   it("handles sort params", async () => {
@@ -239,18 +277,18 @@ describe("processWikitext", () => {
       "{{cite journal |doi=10.1000/ct8 |title=Test |date=2024}}",
       { modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" }
     );
-    const titleIdx = result.indexOf("title");
-    const doiIdx = result.indexOf("doi");
+    const titleIdx = result.text.indexOf("title");
+    const doiIdx = result.text.indexOf("doi");
     expect(doiIdx).toBeGreaterThan(titleIdx);
   });
 
   it("preserves text outside citations", async () => {
     const result = await processWikitext(
       "Before {{cite journal |date=2024-03-15 |title=Test}} After",
-      false
+      { modules: "expand,cleanup,dates,ids,archive,dedup", force: false, ref_names: false }
     );
-    expect(result).toContain("Before ");
-    expect(result).toContain(" After");
+    expect(result.text).toContain("Before ");
+    expect(result.text).toContain(" After");
   });
 
   it("handles no changes gracefully (reformats but preserves content)", async () => {
@@ -258,9 +296,9 @@ describe("processWikitext", () => {
       "{{cite web |title=Test |date=2024 |url=http://example.com}}",
       { modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" }
     );
-    expect(result).toContain("title = Test");
-    expect(result).toContain("date = 2024");
-    expect(result).toContain("url = http://example.com");
+    expect(result.text).toContain("title = Test");
+    expect(result.text).toContain("date = 2024");
+    expect(result.text).toContain("url = http://example.com");
   });
 
   it("adds archive-url when available for cite web", async () => {
@@ -276,9 +314,9 @@ describe("processWikitext", () => {
     });
     const result = await processWikitext(
       "{{cite web |url=http://ex-arch-test.com |title=Test |date=2024}}",
-      false
+      { modules: "expand,cleanup,dates,ids,archive,dedup", force: false, ref_names: false }
     );
-    expect(result).toContain("archive-url");
+    expect(result.text).toContain("archive-url");
   });
 
   it("calls expandCitation with mocked API data", async () => {
@@ -292,26 +330,161 @@ describe("processWikitext", () => {
     });
     const result = await processWikitext(
       "{{cite journal |doi=10.1000/ct9}}",
-      false
+      { modules: "expand,cleanup,dates,ids,archive,dedup", force: false, ref_names: false }
     );
-    expect(result).toContain("Expanded Title");
-    expect(result).toContain("Some Journal");
-    expect(result).toContain("15 March 2024");
+    expect(result.text).toContain("Expanded Title");
+    expect(result.text).toContain("Some Journal");
+    expect(result.text).toContain("15 March 2024");
   });
 
   it("preserves exact spacing when spacing_style is off — no changes", async () => {
     const input = `{{cite web |last=Telfer |first=Tori |date=11 May 2015 |title=Are Multiple Personalities Always a Disorder? |url=https://www.vice.com/en/article/when-multiple-personalities-are-not-a-disorder-400/ |access-date=15 June 2020 |website=Vice |language=en |archive-date=13 August 2024 |archive-url=https://web.archive.org/web/20240813035324/https://www.vice.com/en/article/when-multiple-personalities-are-not-a-disorder-400/ |url-status=live }}`;
     const result = await processWikitext(input, { modules: "expand,cleanup,dates,ids,archive", spacing_style: "", force: false, ref_names: false });
-    expect(result).toBe(input);
+    expect(result.text).toBe(input);
   });
 
   it("preserves original pipe spacing when spacing is off but modules change values", async () => {
     const input = `{{cite journal |last=Smith |year=2024 |doi=10.1000/ct_no_spacing}}`;
     const result = await processWikitext(input, { modules: "cleanup", spacing_style: "", force: false, ref_names: false });
-    // The original is `|last=Smith |year=2024 |doi=...` — no leading space before pipe, single space around
-    // Even if cleanup removes nothing, the original spacing should be preserved
-    expect(result).toContain(`|last=Smith |year=2024`);
-    expect(result).not.toMatch(/  \|/);
-    expect(result).not.toMatch(/\|  /);
+    expect(result.text).toContain(`|last=Smith |year=2024`);
+    expect(result.text).not.toMatch(/ {2}\|/);
+    expect(result.text).not.toMatch(/\| {2}/);
+  });
+
+  it("returns stats with correct counts", async () => {
+    mockFetch.mockImplementation(async (url: string) => {
+      if (url.includes("archive.org/wayback/available")) {
+        return mockOkResponse({
+          archived_snapshots: {
+            closest: { url: "https://web.archive.org/web/20240101000000/http://ex-arch-test.com", timestamp: "20240101000000", status: "200" }
+          }
+        });
+      }
+      return mockOkResponse(null);
+    });
+    const result = await processWikitext(
+      "{{cite web |url=http://ex-arch-test.com |title=Test |date=2024-03-15}}",
+      { modules: "expand,cleanup,dates,archive", spacing_style: "standard" }
+    );
+    expect(result.text).toContain("15 March 2024");
+    expect(result.text).toContain("archive-url");
+    expect(result.stats.changed).toBeGreaterThan(0);
+    expect(result.stats.datesFixed).toBeGreaterThan(0);
+    expect(result.stats.archived).toBeGreaterThan(0);
+    expect(result.aborted).toBe(false);
+  });
+
+  it("supports abort via AbortSignal", async () => {
+    const ac = new AbortController();
+    ac.abort();
+    const result = await processWikitext(
+      "{{cite journal |title=Test |date=2024}}",
+      { modules: "expand,cleanup,dates,ids,archive,dedup", force: false, ref_names: false },
+      ac.signal
+    );
+    expect(result.aborted).toBe(true);
+    expect(result.text).toBe("{{cite journal |title=Test |date=2024}}");
+  });
+
+  it("fires progress callbacks", async () => {
+    const progresses: string[] = [];
+    const result = await processWikitext(
+      "{{cite journal |title=A |doi=10.1000/p1}} {{cite journal |title=B |doi=10.1000/p2}}",
+      { modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" },
+      undefined,
+      (info) => { progresses.push(`${info.phase}:${info.current}/${info.total}`); }
+    );
+    expect(result.text).toContain("title = A");
+    expect(result.text).toContain("title = B");
+    expect(progresses.length).toBeGreaterThan(0);
+    expect(progresses.some(p => p.includes('done'))).toBe(true);
+  });
+
+  it("preserves leading whitespace after = when value changes", async () => {
+    // buildPreservedBody should keep the extra space between = and the old value
+    mockFetch.mockResolvedValue(mockOkResponse(null));
+    const result = await processWikitext(
+      "{{cite journal | date =  2024-03-15 | doi = 10.1000/spacing-test}}",
+      { modules: "dates", force: false, ref_names: false }
+    );
+    expect(result.text).toContain("| date =  15 March 2024");
+  });
+
+  it("buildPreservedBody strips trailing whitespace before appending new params", () => {
+    const citation = {
+      template: "cite journal",
+      raw: "{{cite journal |last=Temple |date=January 2019 }}",
+      params: { last: "Temple", date: "January 2019" },
+      start: 0,
+    };
+    const newParams = { last: "Temple", date: "January 2019", "archive-url": "https://web.archive.org/web/20200101000000/http://example.com" };
+    const result = buildPreservedBody(citation, newParams);
+    expect(result).not.toContain("  |");
+    expect(result).toContain("2019 | archive-url");
+  });
+
+  it("does not add archive-url when DOI is present and force_archive_all is false", async () => {
+    mockFetch.mockImplementation(async (url: string) => {
+      if (url.includes("archive.org/wayback/available")) {
+        return mockOkResponse({
+          archived_snapshots: {
+            closest: { url: "https://web.archive.org/web/20240101000000/http://doi-arch-test.com", timestamp: "20240101000000", status: "200" }
+          }
+        });
+      }
+      return mockOkResponse(null);
+    });
+    const result = await processWikitext(
+      "{{cite web |url=http://doi-arch-test.com |doi=10.1000/doi-arch-test |title=Test |date=2024}}",
+      { modules: "archive", force: false, force_archive_all: false, ref_names: false }
+    );
+    expect(result.text).not.toContain("archive-url");
+  });
+
+  it("adds archive-url when DOI is present and force_archive_all is true", async () => {
+    mockFetch.mockImplementation(async (url: string) => {
+      if (url.includes("archive.org/wayback/available")) {
+        return mockOkResponse({
+          archived_snapshots: {
+            closest: { url: "https://web.archive.org/web/20240101000000/http://doi-arch-force.com", timestamp: "20240101000000", status: "200" }
+          }
+        });
+      }
+      return mockOkResponse(null);
+    });
+    const result = await processWikitext(
+      "{{cite web |url=http://doi-arch-force.com |doi=10.1000/doi-arch-force |title=Test |date=2024}}",
+      { modules: "archive", force: false, force_archive_all: true, ref_names: false }
+    );
+    expect(result.text).toContain("archive-url");
+  });
+
+  it("adds archive-url when no DOI is present even without force_archive_all", async () => {
+    mockFetch.mockImplementation(async (url: string) => {
+      if (url.includes("archive.org/wayback/available")) {
+        return mockOkResponse({
+          archived_snapshots: {
+            closest: { url: "https://web.archive.org/web/20240101000000/http://no-doi-arch-test.com", timestamp: "20240101000000", status: "200" }
+          }
+        });
+      }
+      return mockOkResponse(null);
+    });
+    const result = await processWikitext(
+      "{{cite web |url=http://no-doi-arch-test.com |title=Test |date=2024}}",
+      { modules: "archive", force: false, ref_names: false }
+    );
+    expect(result.text).toContain("archive-url");
+  });
+
+  it("converts vauthors to last/first and removes vauthors", async () => {
+    const input = "{{cite journal |vauthors = Robertson VL | date = 13 January 2014 | title = The Law of the Jungle: Self and Community in the Online Therianthropy Movement | url = https://journal.equinoxpub.com/POM/article/view/3153 | journal = Pomegranate: The International Journal of Pagan Studies | volume = 14 | issue = 2 | doi = 10.1558/pome.v14i2.256 | url-access = subscription}}";
+    const result = await processWikitext(input, {
+      modules: "authors", author_style: "normal",
+      force: false, ref_names: false,
+    });
+    expect(result.text).toContain("last = Robertson");
+    expect(result.text).toContain("first = VL");
+    expect(result.text).not.toMatch(/\|\s*vauthors\s*=/i);
   });
 });

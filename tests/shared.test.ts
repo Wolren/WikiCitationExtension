@@ -27,12 +27,12 @@ describe("shared fixtures (cross-implementation)", () => {
 
       if (f.checks) {
         for (const c of f.checks) {
-          expect(result).toContain(c);
+          expect(result.text).toContain(c);
         }
       }
       if (f.no_checks) {
         for (const c of f.no_checks) {
-          expect(result).not.toContain(c);
+          expect(result.text).not.toContain(c);
         }
       }
     });
