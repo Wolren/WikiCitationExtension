@@ -18,6 +18,15 @@ interface DateFormat {
   format(match: RegExpExecArray): string | null;
 }
 
+function normalizeMonth(m: string): string | null {
+  const lower = m.toLowerCase().replace(/^(\w{3,})\..*$/i, "$1");
+  return MONTHS_FULL[lower] || null;
+}
+
+function ordinalDay(d: string): number {
+  return parseInt(d.replace(/^(\d+)\w*$/, "$1"), 10);
+}
+
 const FORMATS: DateFormat[] = [
   {
     pattern: /^(\d{4})-(\d{2})-(\d{2})$/,
@@ -57,23 +66,23 @@ const FORMATS: DateFormat[] = [
     },
   },
   {
-    pattern: /^(\w+)\s+(\d{1,2}),\s+(\d{4})$/,
+    pattern: /^(\w+)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})$/,
     format: ([, m, d, y]) => {
-      const month = MONTHS_FULL[m.toLowerCase()];
-      return month ? `${parseInt(d, 10)} ${month} ${y}` : null;
+      const month = normalizeMonth(m);
+      return month ? `${ordinalDay(d)} ${month} ${y}` : null;
     },
   },
   {
-    pattern: /^(\d{1,2})\s+(\w+)\s+(\d{4})$/,
+    pattern: /^(\d{1,2})(?:st|nd|rd|th)?\s+(\w+)\s+(\d{4})$/,
     format: ([, d, m, y]) => {
-      const month = MONTHS_FULL[m.toLowerCase()];
-      return month ? `${parseInt(d, 10)} ${month} ${y}` : null;
+      const month = normalizeMonth(m);
+      return month ? `${ordinalDay(d)} ${month} ${y}` : null;
     },
   },
   {
     pattern: /^(\w+)\s+(\d{4})$/,
     format: ([, m, y]) => {
-      const month = MONTHS_FULL[m.toLowerCase()];
+      const month = normalizeMonth(m);
       return month ? `${month} ${y}` : null;
     },
   },

@@ -97,10 +97,10 @@ function moveUrlFromTitle(p: Record<string, string>, changes: string[]): void {
 
 function cleanPrefixes(p: Record<string, string>, changes: string[]): void {
   const prefixes: [string, RegExp, string][] = [
-    ["volume", /^(?:Vol\.|vol\.|Volume|volume)\s*/, "cleaned-volume"],
-    ["pages", /^(?:pp\.|p\.|P\.|PP\.)\s*/, "cleaned-pages"],
-    ["issue", /^(?:No\.|no\.|Issue|issue|#)\s*/, "cleaned-issue"],
-    ["edition", /\s*(?:edition|ed\.|ed)\s*$/i, "cleaned-edition"],
+    ["volume", /^(?:(?:Vol|vol|VOL)\.?|Volume|volume|V\.|v\.)\s*/, "cleaned-volume"],
+    ["pages", /^(?:(?:pp|PP|Pp)\.?|(?:p|P)\.?|Pages?|pages?)\s*/, "cleaned-pages"],
+    ["issue", /^(?:(?:No|no|NO)\.?|Issue|issue|#|Number|number|Iss\.?)\s*/i, "cleaned-issue"],
+    ["edition", /\s*(?:edition|Edition|ed\.|ed|Ed\.|Ed)\s*$/i, "cleaned-edition"],
   ];
   for (const [key, re, changeLabel] of prefixes) {
     if (!p[key]) continue;
@@ -307,7 +307,6 @@ function fixVauthors(p: Record<string, string>, changes: string[]): void {
   if (p.vauthors) {
     let clean = p.vauthors.replace(/\.(?=[,\s]|$)/g, "");
     clean = clean.replace(/\b([A-Z])\s+(?=[A-Z](?:,|\s|$))/g, "$1");
-    clean = clean.replace(/\b([A-Z]{2})[A-Z]+\b/g, "$1");
     if (clean !== p.vauthors) {
       p.vauthors = clean;
       changes.push("fixed-vauthors-punctuation");

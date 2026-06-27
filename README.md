@@ -29,7 +29,7 @@ The extension runs as a content script on Wikipedia article pages. It scans the 
 | Sort | Reorders parameters to the Wikipedia citation parameter order |
 | Archive | Adds or validates Wayback Machine archive links |
 | Dedup | Flags duplicate citations by matching DOI or PMID |
-| SFN | Converts inline `<ref>{{cite ...}}</ref>` to `{{sfn}}` short footnote format |
+| SFN | Converts inline `<ref>{{cite ...}}</ref>` to `{{sfn}}` short footnotes. Handles named refs, consecutive and multi-param `{{rp}}` (page + loc + at), nested templates, `vauthors`, `author`, and merges sources into existing `== Sources ==` sections |
 
 Each module can be toggled individually from the extension popup.
 
@@ -37,9 +37,9 @@ Each module can be toggled individually from the extension popup.
 
 Three citation formatting modes, or no change to preserve the original:
 
-- **Wide** — ` | param = value`
-- **Standard** — Wikipedia convention ( `| param = value` )
-- **Compact** — `|param=value`
+- **Wide** - ` | param = value`
+- **Standard** - Wikipedia convention ( `| param = value` )
+- **Compact** - `|param=value`
 
 ### API key configuration
 
@@ -87,100 +87,6 @@ flowchart LR
     DIST --> XPI["wikifix-extension.xpi<br/>(Firefox / Waterfox)"]
 ```
 
----
-
-## Files
-
-```
-WikiCitationExtension/
-  src/
-    content.ts         # Main content script — DOM scanning, pipeline orchestration, panel UI
-    popup.ts           # Extension popup — module toggles, settings, API key input
-    popup.html         # Popup markup
-    popup.css          # Popup styles
-    background.ts      # Service worker (MV3 requirement, minimal)
-    browser.d.ts       # Type declarations for browser.* APIs
-    lib/
-      api.ts           # External API clients (CrossRef, NCBI, Semantic Scholar, arXiv, etc.)
-      authors.ts       # Author name conversion (Vancouver <-> normal)
-      cache.ts         # In-memory response cache
-      cleanup.ts       # Citation cleanup rules
-      dates.ts         # Date normalization
-      diff.ts          # Diff generation between original and fixed citation
-      expand.ts        # Field expansion from identifiers
-      sfn.ts           # {{sfn}} short footnote conversion
-      spacing.ts       # Parameter spacing normalization
-      types.ts         # Shared type definitions
-      wikitext.ts      # Wikitext parsing, rendering, ref name management
-  public/
-    manifest.json      # Extension manifest (MV3, Chrome + Firefox)
-    icon.svg           # Extension icon
-    browser-polyfill.js # WebExtension browser API polyfill
-  tests/               # Vitest test suite (~13 test files)
-    api.test.ts
-    archive.test.ts
-    authors.test.ts
-    cache.test.ts
-    cleanup.test.ts
-    content.test.ts
-    dates.test.ts
-    diff.test.ts
-    expand.test.ts
-    shared.test.ts
-    spacing.test.ts
-    texts.test.ts
-    wikitext.test.ts
-    fixtures/          # Test fixture data
-  build.mjs            # esbuild bundler + zip/xpi packaging script
-  package.json
-  tsconfig.json
-  vitest.config.ts
-```
-
----
-
-## Development
-
-### Prerequisites
-
-- Node.js 18+
-- npm
-
-### Setup
-
-```bash
-npm install
-```
-
-### Build
-
-```bash
-npm run build
-```
-
-Generates `dist/` with bundled scripts, plus `wikifix-extension.zip` (Chrome) and `wikifix-extension.xpi` (Firefox / Waterfox) at the project root.
-
-### Watch mode
-
-```bash
-npm run watch
-```
-
-### Test
-
-```bash
-npm test          # single run
-npm run test:watch  # watch mode
-```
-
-### CI check
-
-```bash
-npm run ci        # build + test
-```
-
----
-
 ## Installation (development)
 
 ### Chrome
@@ -204,14 +110,14 @@ For permanent installation, sign the `.xpi` through Mozilla Add-ons.
 
 The extension makes read-only requests to:
 
-- [CrossRef REST API](https://api.crossref.org) — metadata lookup by DOI
-- [NCBI E-utilities](https://eutils.ncbi.nlm.nih.gov) — PubMed article metadata
-- [Semantic Scholar API](https://api.semanticscholar.org) — paper metadata and citation graph
-- [arXiv API](https://export.arxiv.org) — arXiv paper metadata
-- [OpenLibrary API](https://openlibrary.org) — ISBN book metadata
-- [EuropePMC API](https://www.ebi.ac.uk/europepmc) — article metadata
-- [OpenAlex API](https://api.openalex.org) — DOI metadata
-- [Wayback Machine API](https://archive.org/wayback) — archive link checking and creation
+- [CrossRef REST API](https://api.crossref.org) - metadata lookup by DOI
+- [NCBI E-utilities](https://eutils.ncbi.nlm.nih.gov) - PubMed article metadata
+- [Semantic Scholar API](https://api.semanticscholar.org) - paper metadata and citation graph
+- [arXiv API](https://export.arxiv.org) - arXiv paper metadata
+- [OpenLibrary API](https://openlibrary.org) - ISBN book metadata
+- [EuropePMC API](https://www.ebi.ac.uk/europepmc) - article metadata
+- [OpenAlex API](https://api.openalex.org) - DOI metadata
+- [Wayback Machine API](https://archive.org/wayback) - archive link checking and creation
 
 All requests are made from the browser on behalf of the user's session on Wikipedia.
 
@@ -219,4 +125,4 @@ All requests are made from the browser on behalf of the user's session on Wikipe
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT - see [LICENSE](LICENSE).

@@ -32,7 +32,7 @@
       <summary data-i18n="sectionAuthorOptions">Author options</summary>
       <div class="opt-row"><label data-i18n="labelStyle">Style:</label><select id="author_style"><option value="normal" data-i18n="optionStyleNormal">Normal (last/first)</option><option value="vancouver" data-i18n="optionStyleVancouver">Vancouver (vauthors)</option></select></div>
       <div class="opt-row checkbox-row"><label><input id="refresh_authors" type="checkbox"><span data-i18n="labelRefreshAuthors">Refresh full names from APIs</span></label><label><span data-i18n="labelMax">Max:</span> <input id="max_authors" type="number" value="6" min="0" max="99" class="num-input"></label></div>
-      <div class="opt-row checkbox-row"><label><input id="skip_org_authors" type="checkbox"><span data-i18n="labelSkipOrgAuthors">Skip organization authors (keep as author, don't convert to vauthors)</span></label></div>
+      <div class="opt-row checkbox-row"><label><input id="skip_org_authors" type="checkbox"><span data-i18n="labelSkipOrgAuthors">Skip organization authors</span></label></div>
     </details>
 
     <details class="section">
@@ -55,6 +55,7 @@
     <details class="section">
       <summary data-i18n="sectionMoreOptions">More options</summary>
       <div class="opt-row checkbox-row"><label><input id="strip_issn" type="checkbox"><span data-i18n="labelStripIssn">Strip ISSN when DOI present</span></label></div>
+      <div class="opt-row"><label data-i18n="labelSfnPageConflict">SFN page conflict:</label><select id="sfn_page_conflict"><option value="rp" data-i18n="optionSfnPageRp">prefer rp</option><option value="both" data-i18n="optionSfnPageBoth">include both</option><option value="cite" data-i18n="optionSfnPageCite">prefer cite</option></select></div>
       <div class="fetch-ids">
         <label style="display:block;font-size:13px;font-weight:600;color:#ccc;margin-bottom:4px" data-i18n="labelFetchIds">Fetch IDs</label>
         <label class="chip-item"><input type="checkbox" data-id="issn"> ISSN</label>

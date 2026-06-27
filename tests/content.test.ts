@@ -230,6 +230,26 @@ describe("processWikitext", () => {
     expect(result.text).not.toMatch(/<ref><ref/);
   });
 
+  it("does not double-wrap when free text between <ref> and {{cite}}", async () => {
+    const text =
+      '<ref>Some introductory text {{cite journal |last=Adams |year=2023 |title=Study |doi=10.1000/ct12}}</ref>';
+    const result = await processWikitext(text, { ref_names: true, modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" });
+    expect(result.text).not.toMatch(/<ref><ref/);
+    expect(result.text).toContain("Some introductory text");
+    expect(result.text.match(/<ref/g)?.length).toBe(1);
+    expect(result.text).not.toContain('name="Adams2023"');
+  });
+
+  it("does not double-wrap when free text after named <ref> and {{cite}}", async () => {
+    const text =
+      '<ref name="OrigName">Preamble text {{cite journal |last=Miller |year=2023 |title=Analysis |doi=10.1000/ct13}}</ref>';
+    const result = await processWikitext(text, { ref_names: true, modules: "expand,cleanup,dates,spacing,sort", spacing_style: "standard" });
+    expect(result.text.match(/<ref/g)?.length).toBe(1);
+    expect(result.text).not.toMatch(/<ref><ref/);
+    expect(result.text).toContain("Preamble text");
+    expect(result.text).toContain('name="OrigName"');
+  });
+
   it("does not wrap citations in See also / Further reading sections", async () => {
     const text =
       "==See also==\n\n* {{cite journal |last=King |year=2021 |title=Review |doi=10.1000/ct99}}";

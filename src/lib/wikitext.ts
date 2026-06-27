@@ -38,7 +38,6 @@ export function parseParams(body: string): Record<string, string> {
   let i = 0;
   let currentKey = "";
   let currentVal = "";
-  const depth = 0;
   let inKey = true;
   let inVal = false;
   let bracketDepth = 0;
@@ -138,6 +137,25 @@ export function detectCitationType(
   if (params.degree) return { new: "cite thesis" };
   if (params.work) return { new: "cite web" };
   return {};
+}
+
+function extractParamBracketAware(body: string, param: string): string | null {
+  const re = new RegExp(`\\|\\s*${escapeRe(param)}\\s*=\\s*`, "i");
+  const m = re.exec(body);
+  if (!m) return null;
+  let val = "";
+  let depth = 0;
+  for (let i = m.index + m[0].length; i < body.length; i++) {
+    const ch = body[i];
+    const next = body[i + 1] || "";
+    if (ch === "{" && next === "{") { depth++; val += "{{"; i++; continue; }
+    if (ch === "}" && next === "}") { depth--; val += "}}"; i++; continue; }
+    if (ch === "[" && next === "[") { depth++; val += "[["; i++; continue; }
+    if (ch === "]" && next === "]") { depth--; val += "]]"; i++; continue; }
+    if (ch === "|" && depth === 0) break;
+    val += ch;
+  }
+  return val.trim() || null;
 }
 
 export function generateRefName(body: string): string | null {

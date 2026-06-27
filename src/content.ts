@@ -4,7 +4,7 @@ import { cleanupCitation, cleanupCitationBody, addArchiveUrls } from "./lib/clea
 import { normalizeDate } from "./lib/dates";
 import { normalizeSpacing, sortParams } from "./lib/spacing";
 import { generateDiff } from "./lib/diff";
-import { convertToSfn } from "./lib/sfn";
+import { convertToSfn, type SfnOptions } from "./lib/sfn";
 import { processAuthors } from "./lib/authors";
 import { setApiKeys, fetchCrossrefAuthors, searchNCBIPmid, searchNCBIPmc, fetchSemanticScholar, fetchOpenAlex, saveWayback, editPage } from "./lib/api";
 import { decrypt } from "./lib/crypto";
@@ -895,7 +895,9 @@ export async function processWikitext(
   }
 
   if (moduleEnabled(mods, "sfn")) {
-    result = convertToSfn(result);
+    const sfnOpts: SfnOptions = {};
+    if (settings.sfn_page_conflict) sfnOpts.pageConflict = settings.sfn_page_conflict;
+    result = convertToSfn(result, sfnOpts);
     stats.changed += result !== text ? 1 : 0;
   }
 
@@ -1190,11 +1192,21 @@ function wrapWithRefName(
         replacement: formatRefName(citation, params, finalName, body),
       };
     }
-  } else if (!prefix.trim().endsWith("</ref>")) {
-    const sections = prefix.match(/^==\s*(.+?)\s*==$/gm);
-    const lastSection = sections ? sections[sections.length - 1] : "";
-    if (!/^==\s*(?:See also|Further reading|External links|Bibliography|References|Sources|Works cited|Bibliography)\s*==$/i.test(lastSection)) {
-      return { start: si, end: ei, replacement: `<ref name="${finalName}">${replacement}</ref>` };
+  } else {
+    const lastOpenRef = prefix.lastIndexOf("<ref");
+    const lastCloseRef = prefix.lastIndexOf("</ref>");
+    if (lastOpenRef > lastCloseRef) {
+      // Inside a <ref> tag with text between it and the citation.
+      // Don't wrap to avoid nested refs, and don't try to span the outer
+      // <ref>...</ref> because there may be other citations inside it.
+      return { start: si, end: ei, replacement };
+    }
+    if (!prefix.trim().endsWith("</ref>")) {
+      const sections = prefix.match(/^==\s*(.+?)\s*==$/gm);
+      const lastSection = sections ? sections[sections.length - 1] : "";
+      if (!/^==\s*(?:See also|Further reading|External links|Bibliography|References|Sources|Works cited|Bibliography)\s*==$/i.test(lastSection)) {
+        return { start: si, end: ei, replacement: `<ref name="${finalName}">${replacement}</ref>` };
+      }
     }
   }
 

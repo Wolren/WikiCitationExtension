@@ -103,9 +103,20 @@ export function parseVauthors(vauthors: string): [string, string][] {
     const trimmed = p.trim();
     const lower = trimmed.toLowerCase();
     if (ORG_PREFIXES.some(pre => lower.startsWith(pre))) return [trimmed, ""];
-    const spaceIdx = trimmed.indexOf(" ");
-    if (spaceIdx === -1) return [trimmed, ""];
-    return [trimmed.slice(0, spaceIdx).trim(), trimmed.slice(spaceIdx + 1).trim()];
+    // Walk backwards from end: trailing uppercase words are initials.
+    // Everything before them is the surname (which may have multiple words).
+    let splitAt = -1;
+    for (let i = trimmed.length - 1; i >= 0; i--) {
+      if (trimmed[i] !== " ") continue;
+      const candidate = trimmed.slice(i + 1).replace(/\./g, "");
+      if (/^[A-Z]{1,4}$/.test(candidate)) {
+        splitAt = i;
+      } else {
+        break;
+      }
+    }
+    if (splitAt === -1) return [trimmed, ""];
+    return [trimmed.slice(0, splitAt).trim(), trimmed.slice(splitAt + 1).trim()];
   });
 }
 
@@ -312,7 +323,7 @@ export async function tryFetchAuthors(
 }
 
 export function diagnoseMultiNameField(body: string): boolean {
-  return /;\s/.test(body) || /\b(and|&)\s/.test(body);
+  return /;\s/.test(body) || /\b(?:and|&)\b/.test(body);
 }
 
 export function diagnoseNumericName(body: string): boolean {

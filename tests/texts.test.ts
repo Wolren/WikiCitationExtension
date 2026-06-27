@@ -26,9 +26,10 @@ if (files.length === 0) {
         expect(original.trim()).toBeTruthy();
 
         const settings: StorageSettings = {
-          modules: "expand,cleanup,dates,authors,ids,spacing,sort,archive,dedup",
+          modules: "cleanup,dates,authors,spacing,sort,dedup",
           force: false,
           ref_names: false,
+          spacing_style: "standard",
         };
         const result = await processWikitext(original, settings);
 

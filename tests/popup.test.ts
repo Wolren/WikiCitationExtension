@@ -13,6 +13,10 @@ const mockGetMessage = vi.fn((key: string) => {
     labelStyle: "Style:",
     labelFetchIds: "Fetch IDs",
     sectionApiKeys: "API keys",
+    labelSfnPageConflict: "SFN page conflict:",
+    optionSfnPageRp: "prefer rp",
+    optionSfnPageBoth: "both",
+    optionSfnPageCite: "cite",
     labelCrossRefEmail: "CrossRef email:",
     labelNcbiKey: "NCBI API key:",
     labelSemanticScholarKey: "Semantic Scholar API key:",
@@ -132,6 +136,7 @@ beforeEach(() => {
       <div><input id="force_archive_all" type="checkbox"></div>
       <div><input id="create_archive" type="checkbox"></div>
       <div><select id="spacing_style"><option value="">Off</option><option value="wide">Wide</option></select></div>
+      <div><select id="sfn_page_conflict"><option value="rp">prefer rp</option><option value="both">both</option><option value="cite">cite</option></select></div>
       <div><input id="strip_issn" type="checkbox"></div>
       <div class="fetch-ids">
         <label class="chip-item"><input type="checkbox" data-id="issn"> ISSN</label>

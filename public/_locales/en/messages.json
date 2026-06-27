@@ -35,7 +35,7 @@
   "optionStyleVancouver": { "message": "Vancouver (vauthors)" },
   "labelRefreshAuthors": { "message": "Refresh full names from APIs" },
   "labelMax": { "message": "Max:" },
-  "labelSkipOrgAuthors": { "message": "Skip organization authors (keep as author, don't convert to vauthors)" },
+  "labelSkipOrgAuthors": { "message": "Skip organization authors" },
 
   "sectionArchiveOptions": { "message": "Archive options" },
   "labelForceArchiveAll": { "message": "Force archive all types" },
@@ -50,6 +50,10 @@
   "sectionMoreOptions": { "message": "More options" },
   "labelStripIssn": { "message": "Strip ISSN when DOI present" },
   "labelFetchIds": { "message": "Fetch IDs" },
+  "labelSfnPageConflict": { "message": "SFN page conflict:" },
+  "optionSfnPageRp": { "message": "prefer rp (default)" },
+  "optionSfnPageBoth": { "message": "include both" },
+  "optionSfnPageCite": { "message": "prefer cite" },
 
   "sectionApiKeys": { "message": "API keys" },
   "apiKeysHint": { "message": "(optional, for higher rate limits)" },

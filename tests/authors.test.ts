@@ -41,6 +41,22 @@ describe("parseVauthors", () => {
   it("handles single author", () => {
     expect(parseVauthors("Einstein A")).toEqual([["Einstein", "A"]]);
   });
+
+  it("handles multi-word last name", () => {
+    expect(parseVauthors("da Silva J, van der Waals A")).toEqual([["da Silva", "J"], ["van der Waals", "A"]]);
+  });
+
+  it("handles hyphenated last name with initials", () => {
+    expect(parseVauthors("al-Ghamdi AB")).toEqual([["al-Ghamdi", "AB"]]);
+  });
+
+  it("handles last name with suffix", () => {
+    expect(parseVauthors("Smith Jr. JA")).toEqual([["Smith Jr.", "JA"]]);
+  });
+
+  it("handles name without initials", () => {
+    expect(parseVauthors("Aristotle")).toEqual([["Aristotle", ""]]);
+  });
 });
 
 describe("extractInitials", () => {
