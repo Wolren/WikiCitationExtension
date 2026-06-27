@@ -577,6 +577,38 @@ describe("fixture patterns in article context", () => {
       checks: ["year = 2024"],
       noChecks: [],
     },
+    {
+      name: "location-place conflict resolved",
+      input: "{{cite book |title=T |date=2024 |location=NYC |place=London}}",
+      modules: "cleanup,spacing",
+      checks: ["location = NYC"],
+      noChecks: ["place = London"],
+      skipArticleNoChecks: true,
+    },
+    {
+      name: "work-website conflict resolved (cite journal, no type-specific rule)",
+      input: "{{cite journal |title=T |date=2024 |doi=10.1000/ct |work=SomeSite |website=OtherSite |journal=J}}",
+      modules: "cleanup,spacing",
+      checks: ["website = OtherSite"],
+      noChecks: ["work = SomeSite"],
+      skipArticleNoChecks: true,
+    },
+    {
+      name: "vauthors-last conflict resolved",
+      input: "{{cite journal |title=T |date=2024 |doi=10.1000/ct |vauthors=Smith JA |last=Jones |journal=J}}",
+      modules: "cleanup,spacing",
+      checks: ["last = Jones"],
+      noChecks: ["vauthors = Smith"],
+      skipArticleNoChecks: true,
+    },
+    {
+      name: "author-last conflict resolved",
+      input: "{{cite journal |title=T |date=2024 |doi=10.1000/ct |author=Jane Doe |last=Smith |journal=J}}",
+      modules: "cleanup,spacing",
+      checks: ["last = Smith"],
+      noChecks: ["author = Jane"],
+      skipArticleNoChecks: true,
+    },
   ];
 
   for (const fx of fixtures) {

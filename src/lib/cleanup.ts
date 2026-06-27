@@ -167,6 +167,11 @@ function removeConflictingParams(p: Record<string, string>, changes: string[]): 
   if (p["access-date"] && !p.url) { delete p["access-date"]; changes.push("orphan-access-date"); }
   if (p["archive-date"] && !p["archive-url"]) { delete p["archive-date"]; changes.push("orphan-archive-date"); }
   if (p["doi-broken-date"] && !p.doi) { delete p["doi-broken-date"]; changes.push("orphan-doi-broken-date"); }
+  if (p.location && p.place) { delete p.place; changes.push("location-place-conflict"); }
+  if (p.work && p.website) { delete p.work; changes.push("work-website-conflict"); }
+  if (p.vauthors && (p.last || p.last1)) { delete p.vauthors; changes.push("vauthors-last-conflict"); }
+  if (p.author && (p.last || p.last1)) { delete p.author; changes.push("author-last-conflict"); }
+  if (p.author && p.vauthors) { delete p.vauthors; changes.push("author-vauthors-conflict"); }
 }
 
 function flagExternalLinks(p: Record<string, string>, changes: string[]): void {
