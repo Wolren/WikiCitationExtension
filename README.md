@@ -14,7 +14,7 @@ A browser extension that finds, cleans, and enriches citations on **English Wiki
 
 The extension runs as a content script on English Wikipedia article pages. It scans the page for `<ref>` tags containing `{{cite ...}}` templates, passes them through a configurable pipeline of processing modules, and displays a diff panel for each citation. The user can then apply the changes back to the page's wikitext editor.
 
-**Only English Wikipedia is supported.** Other language editions of Wikipedia (de.wikipedia.org, fr.wikipedia.org, etc.) and other MediaWiki wikis (Fandom, Miraheze) will not work correctly because the extension relies on English Wikipedia's citation templates, module behavior, and API responses. Contributions to add multi-language support are welcome.
+**Only English Wikipedia is supported.** Other language editions of Wikipedia (de.wikipedia.org, fr.wikipedia.org, etc.) and other MediaWiki wikis (Fandom, Miraheze) will not work correctly because the extension relies on English Wikipedia's citation templates, module behavior, and API responses. Support for additional MediaWiki wikis is planned.
 
 ---
 
