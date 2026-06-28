@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - name: Package Chrome ZIP
+        run: |
+          mkdir -p release
+          cp wikifix-extension.zip release/wikifix-chrome-"${{ github.ref_name }}".zip
+
+      - name: Package Firefox XPI
+        run: |
+          cp wikifix-extension.xpi release/wikifix-firefox-"${{ github.ref_name }}".xpi
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "${{ github.ref_name }}"
+          body: |
+            See CHANGELOG.md or git log for detailed changes.
+          files: |
+            release/wikifix-chrome-${{ github.ref_name }}.zip
+            release/wikifix-firefox-${{ github.ref_name }}.xpi
+          generate_release_notes: true

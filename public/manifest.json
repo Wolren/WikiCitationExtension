@@ -24,7 +24,7 @@
     }
   ],
   "background": {
-    "scripts": ["background.js"]
+    "service_worker": "background.js"
   },
   "icons": {
     "16": "icon.svg",
