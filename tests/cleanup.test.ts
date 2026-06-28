@@ -309,6 +309,185 @@ describe("addArchiveUrls", () => {
   });
 });
 
+describe("cleanupCitation - alias normalization", () => {
+  it("normalizes accessdate to access-date", () => {
+    const { params, changes } = cleanupCitation({ accessdate: "15 June 2020", url: "http://example.com", title: "Test" });
+    expect(params["access-date"]).toBe("15 June 2020");
+    expect(params.accessdate).toBeUndefined();
+    expect(changes).toContain("alias-accessdate-to-access-date");
+  });
+
+  it("normalizes archiveurl to archive-url", () => {
+    const { params, changes } = cleanupCitation({ archiveurl: "https://web.archive.org/123", title: "Test" });
+    expect(params["archive-url"]).toBe("https://web.archive.org/123");
+    expect(params.archiveurl).toBeUndefined();
+    expect(changes).toContain("alias-archiveurl-to-archive-url");
+  });
+
+  it("normalizes archivedate to archive-date", () => {
+    const { params, changes } = cleanupCitation({ archivedate: "2025-01-21", "archive-url": "https://web.archive.org/123", title: "Test" });
+    expect(params["archive-date"]).toBe("2025-01-21");
+    expect(params.archivedate).toBeUndefined();
+    expect(changes).toContain("alias-archivedate-to-archive-date");
+  });
+
+  it("normalizes authorlink to author-link", () => {
+    const { params, changes } = cleanupCitation({ authorlink: "John_Smith", title: "Test" });
+    expect(params["author-link"]).toBe("John_Smith");
+    expect(params.authorlink).toBeUndefined();
+    expect(changes).toContain("alias-authorlink-to-author-link");
+  });
+
+  it("normalizes numbered authorlink aliases", () => {
+    const { params, changes } = cleanupCitation({ authorlink1: "Smith_J", authorlink2: "Doe_J", title: "Test" });
+    expect(params["author-link1"]).toBe("Smith_J");
+    expect(params["author-link2"]).toBe("Doe_J");
+    expect(changes).toContain("alias-authorlink1-to-author-link1");
+    expect(changes).toContain("alias-authorlink2-to-author-link2");
+  });
+
+  it("normalizes author1-link alias to author-link1", () => {
+    const { params, changes } = cleanupCitation({ "author1-link": "Smith", title: "Test" });
+    expect(params["author-link1"]).toBe("Smith");
+    expect(changes).toContain("alias-author1-link-to-author-link1");
+  });
+
+  it("normalizes subjectlink as alias for author-link", () => {
+    const { params, changes } = cleanupCitation({ subjectlink: "John_Smith", title: "Test" });
+    expect(params["author-link"]).toBe("John_Smith");
+    expect(changes).toContain("alias-subjectlink-to-author-link");
+  });
+
+  it("normalizes airdate to date", () => {
+    const { params, changes } = cleanupCitation({ airdate: "2024-11-15", title: "Test" });
+    expect(params.date).toBe("2024-11-15");
+    expect(params.airdate).toBeUndefined();
+    expect(changes).toContain("alias-airdate-to-date");
+  });
+
+  it("normalizes number to issue for cite journal", () => {
+    const { params, changes } = cleanupCitation({ number: "42", title: "Test", journal: "J" }, { templateType: "cite journal" });
+    expect(params.issue).toBe("42");
+    expect(params.number).toBeUndefined();
+    expect(changes).toContain("alias-number-to-issue");
+  });
+
+  it("normalizes number to issue for cite magazine", () => {
+    const { params, changes } = cleanupCitation({ number: "7", title: "Test", magazine: "M" }, { templateType: "cite magazine" });
+    expect(params.issue).toBe("7");
+    expect(params.number).toBeUndefined();
+  });
+
+  it("does not convert number for cite techreport", () => {
+    const { params, changes } = cleanupCitation({ number: "TR-42", title: "Test" }, { templateType: "cite techreport" });
+    expect(params.number).toBe("TR-42");
+    expect(params.issue).toBeUndefined();
+    expect(changes).not.toContain(expect.stringMatching(/number/));
+  });
+
+  it("does not convert number for cite web", () => {
+    const { params, changes } = cleanupCitation({ number: "42", title: "Test", url: "http://x.com" }, { templateType: "cite web" });
+    expect(params.number).toBe("42");
+    expect(changes).not.toContain(expect.stringMatching(/number/));
+  });
+
+  it("removes duplicate number when issue also exists in cite journal", () => {
+    const { params, changes } = cleanupCitation({ number: "42", issue: "7", title: "Test", journal: "J" }, { templateType: "cite journal" });
+    expect(params.issue).toBe("7");
+    expect(params.number).toBeUndefined();
+    expect(changes).toContain("removed-duplicate-number");
+  });
+
+  it("splits Vancouver-style last1 with comma into last1+first1", () => {
+    const { params, changes } = cleanupCitation({ last1: "Kretschmer, Ernst", title: "Body", date: "2013" });
+    expect(params.last1).toBe("Kretschmer");
+    expect(params.first1).toBe("Ernst");
+    expect(changes).toContain("vancouver-split-last1");
+  });
+
+  it("splits Vancouver-style last with comma into last+first", () => {
+    const { params, changes } = cleanupCitation({ last: "Smith, John", title: "Test", date: "2024" });
+    expect(params.last).toBe("Smith");
+    expect(params.first).toBe("John");
+    expect(changes).toContain("vancouver-split-last");
+  });
+
+  it("does not split last when first already exists", () => {
+    const { params, changes } = cleanupCitation({ last1: "Kretschmer, Ernst", first1: "E.", title: "Body", date: "2013" });
+    expect(params.last1).toBe("Kretschmer, Ernst");
+    expect(params.first1).toBe("E.");
+    expect(changes).not.toContain(expect.stringMatching(/vancouver-split/));
+  });
+
+  it("does not split last without comma", () => {
+    const { params, changes } = cleanupCitation({ last: "Kretschmer", title: "Test", date: "2024" });
+    expect(params.last).toBe("Kretschmer");
+    expect(changes).not.toContain(expect.stringMatching(/vancouver-split/));
+  });
+
+  it("normalizes lang to language", () => {
+    const { params, changes } = cleanupCitation({ lang: "fr", title: "Test" });
+    expect(params.language).toBe("fr");
+    expect(params.lang).toBeUndefined();
+    expect(changes).toContain("alias-lang-to-language");
+  });
+
+  it("normalizes origyear to orig-date", () => {
+    const { params, changes } = cleanupCitation({ origyear: "2020", title: "Test" });
+    expect(params["orig-date"]).toBe("2020");
+    expect(changes).toContain("alias-origyear-to-orig-date");
+  });
+
+  it("normalizes booktitle to book-title", () => {
+    const { params, changes } = cleanupCitation({ booktitle: "A Book", title: "Test" });
+    expect(params["book-title"]).toBe("A Book");
+    expect(changes).toContain("alias-booktitle-to-book-title");
+  });
+
+  it("normalizes nopp to no-pp", () => {
+    const { params, changes } = cleanupCitation({ nopp: "yes", title: "Test" });
+    expect(params["no-pp"]).toBe("yes");
+    expect(changes).toContain("alias-nopp-to-no-pp");
+  });
+
+  it("converts deadurl=yes to url-status=dead", () => {
+    const { params, changes } = cleanupCitation({ deadurl: "yes", title: "Test", url: "http://x.com" });
+    expect(params["url-status"]).toBe("dead");
+    expect(params.deadurl).toBeUndefined();
+    expect(changes).toContain("deadurl-to-url-status");
+  });
+
+  it("removes deadurl=no without adding url-status", () => {
+    const { params, changes } = cleanupCitation({ deadurl: "no", title: "Test", url: "http://x.com" });
+    expect(params["url-status"]).toBeUndefined();
+    expect(params.deadurl).toBeUndefined();
+    expect(changes).toContain("deadurl-to-url-status");
+  });
+
+  it("removes duplicate alias when canonical already exists", () => {
+    const { params, changes } = cleanupCitation({
+      accessdate: "15 June 2020",
+      "access-date": "16 June 2020",
+      title: "Test",
+      url: "http://example.com",
+    });
+    expect(params["access-date"]).toBe("16 June 2020");
+    expect(params.accessdate).toBeUndefined();
+    expect(changes).toContain("removed-duplicate-accessdate");
+  });
+
+  it("does not affect params with no aliases", () => {
+    const { params, changes } = cleanupCitation({ title: "Clean", date: "2024", doi: "10.1000/x" });
+    expect(changes).not.toContain(expect.stringMatching(/^alias-/));
+  });
+
+  it("applies alias before empty check so orphan access-date is removed", () => {
+    const { params } = cleanupCitation({ accessdate: "", title: "Test" });
+    expect(params["access-date"]).toBeUndefined();
+    expect(params.accessdate).toBeUndefined();
+  });
+});
+
 describe("cleanupCitation - new rules", () => {
   it("flags placeholder title", () => {
     const { changes } = cleanupCitation({
@@ -382,12 +561,38 @@ describe("cleanupCitation - new rules", () => {
     expect(result.changes).toContain("periodical-conflict");
   });
 
-  it("removes work from cite journal", () => {
+  it("converts work to journal for cite journal", () => {
     const result = cleanupCitation({
       work: "Nature",
       title: "Test",
       date: "2024",
     }, { templateType: "cite journal" });
+    expect(result.params.journal).toBe("Nature");
+    expect(result.params.work).toBeUndefined();
+    expect(result.changes).toContain("periodical-conflict");
+    expect(result.changes).toContain("work-to-journal");
+  });
+
+  it("converts work to magazine for cite magazine", () => {
+    const result = cleanupCitation({
+      work: "Wired",
+      magazine: "Wired",
+      title: "Test",
+      date: "2024",
+    }, { templateType: "cite magazine" });
+    expect(result.params.magazine).toBe("Wired");
+    expect(result.params.work).toBeUndefined();
+    expect(result.changes).toContain("periodical-conflict");
+  });
+
+  it("does not overwrite existing journal with work", () => {
+    const result = cleanupCitation({
+      work: "Other",
+      journal: "Nature",
+      title: "Test",
+      date: "2024",
+    }, { templateType: "cite journal" });
+    expect(result.params.journal).toBe("Nature");
     expect(result.params.work).toBeUndefined();
     expect(result.changes).toContain("periodical-conflict");
   });
@@ -438,17 +643,17 @@ describe("cleanupCitation - new rules", () => {
     expect(result.changes).toContain("periodical-conflict");
   });
 
-  it("converts work to website for cite news", () => {
+  it("converts work to newspaper for cite news", () => {
     const result = cleanupCitation({
       work: "News Source",
       url: "http://example.com",
       title: "Test",
       date: "2024",
     }, { templateType: "cite news" });
-    expect(result.params.website).toBe("News Source");
+    expect(result.params.newspaper).toBe("News Source");
     expect(result.params.work).toBeUndefined();
     expect(result.changes).toContain("periodical-conflict");
-    expect(result.changes).toContain("work-to-website");
+    expect(result.changes).toContain("work-to-newspaper");
   });
 
   it("removes journal from cite magazine", () => {

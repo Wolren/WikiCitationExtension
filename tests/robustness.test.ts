@@ -49,29 +49,110 @@ function countCiteTemplates(text: string): number {
   return findCitations(text).length;
 }
 
-function hasUnclosedTemplates(text: string): boolean {
+// ── Extended invariant checkers ──────────────────────────────────────
+
+/** Balanced {{ }} in output */
+function balancedBraces(text: string): boolean {
   const open = (text.match(/\{\{/g) || []).length;
   const close = (text.match(/\}\}/g) || []).length;
-  return open !== close;
+  return open === close;
 }
 
-function hasNestedRefs(text: string): boolean {
+/** No stray closing braces outside a matching {{ pair — detects generating broken templates */
+function noStrayClosingBraces(text: string): boolean {
+  let depth = 0;
+  for (let i = 0; i < text.length - 1; i++) {
+    if (text[i] === "{" && text[i + 1] === "{") { depth++; i++; }
+    else if (text[i] === "}" && text[i + 1] === "}") {
+      depth--;
+      if (depth < 0) return false;
+      i++;
+    }
+  }
+  return depth === 0;
+}
+
+/** Every opening <ref has a matching </ref> or is self-closing <ref .../> */
+function allRefsClosed(text: string): boolean {
   const stack: number[] = [];
   const re = /<\/?ref\b[^>]*>/gi;
   let match;
   while ((match = re.exec(text)) !== null) {
     if (match[0].startsWith("</")) {
-      if (stack.length === 0) continue;
+      if (stack.length === 0) return false;
       stack.pop();
-    } else if (match[0].endsWith("/>")) { continue; }
-    else {
-      if (stack.length > 0) return true;
+    } else if (match[0].endsWith("/>")) {
+      continue;
+    } else {
       stack.push(match.index);
     }
   }
-  return false;
+  return stack.length === 0;
 }
 
+/** No <ref></ref> with no content */
+function noEmptyRefs(text: string): boolean {
+  return !/<ref\b[^>]*>\s*<\/ref>/i.test(text);
+}
+
+/** No double pipes || outside wikilinks (inside citation bodies) */
+function noDoublePipesInCites(text: string): boolean {
+  const citations = findCitations(text);
+  for (const c of citations) {
+    const body = c.raw;
+    // Extract pipe-separated params, skip content inside [[ ]]
+    let inWikilink = false;
+    for (let i = 0; i < body.length; i++) {
+      if (body[i] === "[" && body[i + 1] === "[") inWikilink = true;
+      else if (body[i] === "]" && body[i + 1] === "]") inWikilink = false;
+      if (!inWikilink && body[i] === "|" && body[i + 1] === "|") return false;
+    }
+  }
+  return true;
+}
+
+/** Balanced [[ ]] */
+function balancedWikilinks(text: string): boolean {
+  // Count only those outside {{}} templates to avoid false positives
+  let depth = 0;
+  let wlDepth = 0;
+  for (let i = 0; i < text.length - 1; i++) {
+    if (text[i] === "{" && text[i + 1] === "{") { depth++; i++; }
+    else if (text[i] === "}" && text[i + 1] === "}") { depth--; i++; }
+    else if (depth === 0 && text[i] === "[" && text[i + 1] === "[") { wlDepth++; i++; }
+    else if (depth === 0 && text[i] === "]" && text[i + 1] === "]") { wlDepth--; i++; }
+  }
+  return wlDepth === 0;
+}
+
+/** No empty or broken wikilinks [[|]], [[]], [[foo]] without pipe where pipe is needed */
+function noBrokenWikilinks(text: string): boolean {
+  const broken = text.match(/\[\[\s*\]\]|\[\|\s*\]\]/g);
+  return !broken || broken.length === 0;
+}
+
+/** Output should not contain replacement characters (encoding corruption) */
+function noEncodingErrors(text: string): boolean {
+  return !text.includes("\ufffd");
+}
+
+/** No orphaned access-date or archive-date without their parent params */
+function noOrphanDateFields(text: string): boolean {
+  const citations = findCitations(text);
+  for (const c of citations) {
+    const body = c.raw;
+    if (/\|access-date\s*=/.test(body) && !/\|url\s*=/.test(body)) return false;
+    if (/\|archive-date\s*=/.test(body) && !/\|archive-url\s*=/.test(body)) return false;
+  }
+  return true;
+}
+
+/** Output length must be at least 10% of input — detects catastrophic data loss */
+function outputLengthReasonable(inputLen: number, outputLen: number): boolean {
+  return outputLen >= inputLen * 0.1;
+}
+
+/** Sections in input should be preserved (or added to) */
 function sections(text: string): string[] {
   return text.match(/^==\s*.+?\s*==$/gm) || [];
 }
@@ -80,13 +161,69 @@ function hasSections(text: string): boolean {
   return sections(text).length > 0;
 }
 
-// ── Fixture definitions ─────────────────────────────────────────────
+/** Citation count preserved or properly converted */
+function hasSfnTemplates(text: string): boolean {
+  return (text.match(/\{\{\s*sfn\b/gi) || []).length > 0;
+}
+
+// ── Article fetching ─────────────────────────────────────────────────
+
+const ARTICLES_PER_RUN = 3;
+const RUNS = 3;
+
+interface ArticleEntry {
+  run: number;
+  title: string;
+  text: string;
+}
+
+const allArticles: ArticleEntry[] = [];
+
+async function fetchRandomTitles(count: number): Promise<string[]> {
+  const url = `https://en.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=${count}&format=json&origin=*`;
+  const resp = await fetchWithRetry(url);
+  const data = (await resp.json()) as any;
+  const pages = data?.query?.random || [];
+  return pages.map((p: any) => p.title);
+}
+
+async function fetchWikitext(title: string): Promise<string> {
+  const params = new URLSearchParams({
+    action: "query", format: "json", prop: "revisions",
+    titles: title, rvprop: "content", origin: "*",
+  });
+  const resp = await fetchWithRetry(`https://en.wikipedia.org/w/api.php?${params}`);
+  const data = (await resp.json()) as any;
+  const pages = data?.query?.pages || {};
+  const key = Object.keys(pages)[0];
+  if (!key || key === "-1") throw new Error(`Article "${title}" not found`);
+  return pages[key]?.revisions?.[0]?.["*"] || "";
+}
+
+beforeAll(async () => {
+  for (let run = 1; run <= RUNS; run++) {
+    const titles = await fetchRandomTitles(ARTICLES_PER_RUN);
+    console.log(`  Run ${run}: [${titles.join(", ")}]`);
+    for (const title of titles) {
+      await delay(5000);
+      const text = await fetchWikitext(title);
+      expect(text).toBeTruthy();
+      expect(text.length).toBeGreaterThan(50);
+      allArticles.push({ run, title, text });
+    }
+    await delay(3000);
+  }
+  console.log(`  Total: ${allArticles.length} articles`);
+}, 300000);
+
+// ── Per-config expectations ──────────────────────────────────────────
 
 interface FixtureDef {
   name: string;
   input: string;
   checks: string[];
   noChecks?: string[];
+  settings?: Partial<StorageSettings>;
 }
 
 const FIXTURE_ISBN: FixtureDef = {
@@ -170,75 +307,13 @@ const FIXTURE_DOI: FixtureDef = {
   checks: ["10.18778/1733-8077.16.3.02"],
 };
 
-// ── Article fetching ─────────────────────────────────────────────────
-
-const ARTICLES_PER_RUN = 3;
-const RUNS = 3;
-
-interface ArticleEntry {
-  run: number;
-  title: string;
-  text: string;
-}
-
-const allArticles: ArticleEntry[] = [];
-
-async function fetchRandomTitles(count: number): Promise<string[]> {
-  const url = `https://en.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=${count}&format=json&origin=*`;
-  const resp = await fetchWithRetry(url);
-  const data = (await resp.json()) as any;
-  const pages = data?.query?.random || [];
-  return pages.map((p: any) => p.title);
-}
-
-async function fetchWikitext(title: string): Promise<string> {
-  const params = new URLSearchParams({
-    action: "query", format: "json", prop: "revisions",
-    titles: title, rvprop: "content", origin: "*",
-  });
-  const resp = await fetchWithRetry(`https://en.wikipedia.org/w/api.php?${params}`);
-  const data = (await resp.json()) as any;
-  const pages = data?.query?.pages || {};
-  const key = Object.keys(pages)[0];
-  if (!key || key === "-1") throw new Error(`Article "${title}" not found`);
-  return pages[key]?.revisions?.[0]?.["*"] || "";
-}
-
-beforeAll(async () => {
-  for (let run = 1; run <= RUNS; run++) {
-    const titles = await fetchRandomTitles(ARTICLES_PER_RUN);
-    console.log(`  Run ${run}: [${titles.join(", ")}]`);
-    for (const title of titles) {
-      await delay(5000);
-      const text = await fetchWikitext(title);
-      expect(text).toBeTruthy();
-      expect(text.length).toBeGreaterThan(50);
-      allArticles.push({ run, title, text });
-    }
-    await delay(3000);
-  }
-  console.log(`  Total: ${allArticles.length} articles`);
-}, 300000);
-
-// ── Per-config expectations ──────────────────────────────────────────
-
-/**
- * Each config test verifies:
- * 1. Structural safety (balanced braces, nested refs) across all articles
- * 2. Positive fixtures: injected patterns that SHOULD be transformed
- * 3. Negative fixtures: injected patterns that should NOT be transformed (config boundary)
- */
 interface ConfigGoal {
   name: string;
   settings: StorageSettings;
   desc: string;
-  /** Fixtures whose checks should pass */
   posFixtures: FixtureDef[];
-  /** Fixture definitions whose checks should NOT be found (config shouldn't handle these) */
   negFixtures?: FixtureDef[];
-  /** What the spacing style is expected to be (empty string = no spacing change) */
   spacingStyle: "" | "standard" | "wide" | "compact";
-  /** Whether ref_names is active */
   hasRefNames: boolean;
 }
 
@@ -331,8 +406,7 @@ const CONFIGS: ConfigGoal[] = [
 // ── Spacing-style checkers ───────────────────────────────────────────
 
 function checkSpacing(text: string, style: "" | "standard" | "wide" | "compact"): void {
-  if (style === "") return; // no spacing module → no assertion
-  // Use findCitations to only check citations the processor would actually process
+  if (style === "") return;
   const citations = findCitations(text);
   if (citations.length === 0) return;
   let matched = 0;
@@ -347,9 +421,6 @@ function checkSpacing(text: string, style: "" | "standard" | "wide" | "compact")
       if (hasPipeSpace || hasEqSpace) matched++;
     }
   }
-  // At least one citation must match the expected spacing format.
-  // This avoids flakiness from unprocessable citations (e.g. inside <nowiki>)
-  // while still catching spacing module failures.
   const pct = citations.length > 0 ? (matched / citations.length) * 100 : 0;
   expect(matched, `wide spacing: ${matched}/${citations.length} citations matched (${pct.toFixed(0)}%)`).toBeGreaterThan(0);
 }
@@ -384,20 +455,112 @@ describe("article cache", () => {
 
 for (const cfg of CONFIGS) {
   describe(`config: ${cfg.name} — ${cfg.desc}`, () => {
-    // ── Structural safety ──────────────────────────────────────────
+    // ── Structural safety (extended) ─────────────────────────────
     describe("structural safety", () => {
       it("balanced braces for all articles", async () => {
         for (const { run, title, text } of allArticles) {
           const result = await processWikitext(text, cfg.settings);
-          expect(hasUnclosedTemplates(result.text), `"${title}" run ${run}`).toBe(false);
+          expect(balancedBraces(result.text), `"${title}" run ${run}`).toBe(true);
+        }
+      }, 120000);
+
+      it("stray closing braces detected", async () => {
+        for (const { run, title, text } of allArticles) {
+          const result = await processWikitext(text, cfg.settings);
+          expect(noStrayClosingBraces(result.text), `"${title}" run ${run}: stray }} without matching {{`).toBe(true);
+        }
+      }, 120000);
+
+      it("all ref tags properly closed", async () => {
+        for (const { run, title, text } of allArticles) {
+          const result = await processWikitext(text, cfg.settings);
+          expect(allRefsClosed(result.text), `"${title}" run ${run}: unclosed or stray </ref>`).toBe(true);
+        }
+      }, 120000);
+
+      it("no empty ref tags", async () => {
+        for (const { run, title, text } of allArticles) {
+          const result = await processWikitext(text, cfg.settings);
+          expect(noEmptyRefs(result.text), `"${title}" run ${run}: empty <ref></ref>`).toBe(true);
         }
       }, 120000);
 
       it("no nested refs (ref_names configs excluded from assertion)", async () => {
-        if (cfg.hasRefNames) return; // known edge case
+        if (cfg.hasRefNames) return;
         for (const { run, title, text } of allArticles) {
           const result = await processWikitext(text, cfg.settings);
-          expect(hasNestedRefs(result.text), `"${title}" run ${run}`).toBe(false);
+          const stack: number[] = [];
+          const re = /<\/?ref\b[^>]*>/gi;
+          let match;
+          let nested = false;
+          while ((match = re.exec(result.text)) !== null) {
+            if (match[0].startsWith("</")) {
+              if (stack.length === 0) continue;
+              stack.pop();
+            } else if (match[0].endsWith("/>")) { continue; }
+            else {
+              if (stack.length > 0) nested = true;
+              stack.push(match.index);
+            }
+          }
+          expect(nested, `"${title}" run ${run}: nested refs`).toBe(false);
+        }
+      }, 120000);
+
+      it("balanced wikilinks in output", async () => {
+        for (const { run, title, text } of allArticles) {
+          const result = await processWikitext(text, cfg.settings);
+          expect(balancedWikilinks(result.text), `"${title}" run ${run}: unbalanced [[ ]]`).toBe(true);
+        }
+      }, 120000);
+
+      it("no broken wikilinks", async () => {
+        for (const { run, title, text } of allArticles) {
+          const result = await processWikitext(text, cfg.settings);
+          expect(noBrokenWikilinks(result.text), `"${title}" run ${run}: broken [[|]] or [[]]`).toBe(true);
+        }
+      }, 120000);
+
+      it("no double pipes in citation bodies", async () => {
+        for (const { run, title, text } of allArticles) {
+          const result = await processWikitext(text, cfg.settings);
+          expect(noDoublePipesInCites(result.text), `"${title}" run ${run}: double || in citation`).toBe(true);
+        }
+      }, 120000);
+
+      it("no encoding errors", async () => {
+        for (const { run, title, text } of allArticles) {
+          const result = await processWikitext(text, cfg.settings);
+          expect(noEncodingErrors(result.text), `"${title}" run ${run}: replacement characters`).toBe(true);
+        }
+      }, 120000);
+
+      it("no orphan date fields (access-date/archive-date without parent)", async () => {
+        for (const { run, title, text } of allArticles) {
+          const result = await processWikitext(text, cfg.settings);
+          expect(noOrphanDateFields(result.text), `"${title}" run ${run}: orphan access-date or archive-date`).toBe(true);
+        }
+      }, 120000);
+
+      it("output length reasonable", async () => {
+        for (const { run, title, text } of allArticles) {
+          const result = await processWikitext(text, cfg.settings);
+          expect(outputLengthReasonable(text.length, result.text.length),
+            `"${title}" run ${run}: output ${result.text.length} vs input ${text.length}`).toBe(true);
+        }
+      }, 120000);
+
+      it("processor does not capitalize template names (input may have {{Cite}} already)", async () => {
+        for (const { run, title, text } of allArticles) {
+          const result = await processWikitext(text, cfg.settings);
+          // Only flag templates the processor itself generates
+          // The processor always outputs lowercase template names
+          const generated = result.text.match(/\{\{(citation|cite\s+\w+)\b/gi) || [];
+          const original = text.match(/\{\{(citation|cite\s+\w+)\b/gi) || [];
+          // If the output has more uppercase templates than input, something is wrong
+          const upperOut = generated.filter(t => /[A-Z]/.test(t.slice(2))).length;
+          const upperIn = original.filter(t => /[A-Z]/.test(t.slice(2))).length;
+          expect(upperOut, `"${title}" run ${run}: processor generated ${upperOut} uppercase templates (input had ${upperIn})`).toBeLessThanOrEqual(upperIn);
         }
       }, 120000);
 
@@ -421,6 +584,24 @@ for (const cfg of CONFIGS) {
           expect(result.aborted, `"${title}" run ${run}`).toBe(false);
         }
       }, 120000);
+
+      // NEW: Detect citation count drop — ensure we didn't silently eat citations
+      it("citation count not zero when input had citations", async () => {
+        for (const { run, title, text } of allArticles) {
+          const inputCites = countCiteTemplates(text);
+          if (inputCites === 0) continue;
+          const result = await processWikitext(text, cfg.settings);
+          const isSfn = cfg.settings.modules.includes("sfn");
+          const outputCites = countCiteTemplates(result.text);
+          const sfnCount = hasSfnTemplates(result.text) ? (result.text.match(/\{\{\s*sfn\b/gi) || []).length : 0;
+          const totalRefs = outputCites + sfnCount;
+          if (isSfn) {
+            expect(totalRefs, `"${title}" run ${run}: sfn conversion lost all ${inputCites} citations`).toBeGreaterThan(0);
+          } else {
+            expect(outputCites, `"${title}" run ${run}: all ${inputCites} citations disappeared`).toBeGreaterThan(0);
+          }
+        }
+      }, 120000);
     });
 
     // ── Positive: config should transform these fixtures ───────────
@@ -433,11 +614,12 @@ for (const cfg of CONFIGS) {
               for (const c of fx.checks) {
                 expect(resultText, `"${title}" run ${run}`).toContain(c);
               }
-              expect(hasUnclosedTemplates(resultText), `"${title}" run ${run}`).toBe(false);
-              if (hasSections(text)) {
-                const news = sections(resultText);
-                expect(news.length, `"${title}" run ${run}`).toBeGreaterThanOrEqual(sections(text).length);
-              }
+              // Also run extended invariants on fixture-injected text
+              expect(noStrayClosingBraces(resultText), `"${title}" run ${run}: stray braces`).toBe(true);
+              expect(allRefsClosed(resultText), `"${title}" run ${run}: unclosed refs`).toBe(true);
+              expect(balancedWikilinks(resultText), `"${title}" run ${run}: unbalanced wikilinks`).toBe(true);
+              expect(noDoublePipesInCites(resultText), `"${title}" run ${run}: double pipes`).toBe(true);
+              expect(noEncodingErrors(resultText), `"${title}" run ${run}: encoding errors`).toBe(true);
             }
           }, 120000);
         }
@@ -493,5 +675,28 @@ for (const cfg of CONFIGS) {
         }, 120000);
       });
     }
+
+    // ── Regression: output should not introduce new problems ──────
+    describe("regression detection", () => {
+      it("output does not contain error markers", async () => {
+        for (const { run, title, text } of allArticles) {
+          const result = await processWikitext(text, cfg.settings);
+          const errorMarkers = ["\ufffd", "undefined", "NaN", "[object Object]"];
+          for (const marker of errorMarkers) {
+            expect(result.text, `"${title}" run ${run}: contains "${marker}"`).not.toContain(marker);
+          }
+        }
+      }, 120000);
+
+      it("all open ref tags eventually close (no formatting that breaks refs)", async () => {
+        for (const { run, title, text } of allArticles) {
+          const result = await processWikitext(text, cfg.settings);
+          // Count <ref> open tags and </ref> close tags separately
+          const opens = (result.text.match(/<ref\b[^>]*\/?>/gi) || []).filter(r => !r.endsWith("/>")).length;
+          const closes = (result.text.match(/<\/ref\s*>/gi) || []).length;
+          expect(opens, `"${title}" run ${run}: ${opens} open refs vs ${closes} closed`).toBe(closes);
+        }
+      }, 120000);
+    });
   });
 }

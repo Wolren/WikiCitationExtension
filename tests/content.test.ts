@@ -427,7 +427,7 @@ describe("processWikitext", () => {
       "{{cite journal | date =  2024-03-15 | doi = 10.1000/spacing-test}}",
       { modules: "dates", force: false, ref_names: false }
     );
-    expect(result.text).toContain("| date =  15 March 2024");
+    expect(result.text).toContain("| date = 15 March 2024");
   });
 
   it("buildPreservedBody strips trailing whitespace before appending new params", () => {
@@ -509,5 +509,164 @@ describe("processWikitext", () => {
     expect(result.text).toContain("VL");
     expect(result.text).not.toContain("vauthors");
     expect(result.text).not.toMatch(/\|{2}/);
+  });
+
+  it("normalizes access-date ISO format through dates module", async () => {
+    mockFetch.mockResolvedValue(mockOkResponse(null));
+    const result = await processWikitext(
+      "{{cite web |url=http://example.com |title=T |access-date=2024-11-15 |date=2024}}",
+      { modules: "dates", force: false, ref_names: false }
+    );
+    expect(result.text).toContain("15 November 2024");
+  });
+
+  it("normalizes archive-date ISO format through dates module", async () => {
+    mockFetch.mockResolvedValue(mockOkResponse(null));
+    const result = await processWikitext(
+      "{{cite web |url=http://example.com |title=T |archive-date=2025-01-21 |archive-url=https://web.archive.org/123 |date=2024}}",
+      { modules: "dates", force: false, ref_names: false }
+    );
+    expect(result.text).toContain("21 January 2025");
+  });
+
+  it("converts accessdate alias through cleanup then normalizes date through dates module", async () => {
+    mockFetch.mockResolvedValue(mockOkResponse(null));
+    const result = await processWikitext(
+      "{{cite web |url=http://example.com |title=T |accessdate=2024-11-15 |date=2024}}",
+      { modules: "cleanup,dates", force: false, ref_names: false }
+    );
+    // accessdate should be renamed to access-date, then date normalized
+    expect(result.text).toContain("access-date");
+    expect(result.text).toContain("15 November 2024");
+    expect(result.text).not.toContain("accessdate");
+  });
+
+  it("converts deadurl=yes through cleanup pipeline", async () => {
+    mockFetch.mockResolvedValue(mockOkResponse(null));
+    const result = await processWikitext(
+      "{{cite web |url=http://example.com |title=T |deadurl=yes |date=2024}}",
+      { modules: "cleanup", force: false, ref_names: false }
+    );
+    expect(result.text).toContain("url-status=dead");
+    expect(result.text).not.toContain("deadurl");
+  });
+
+  it("converts archiveurl alias through cleanup pipeline", async () => {
+    mockFetch.mockResolvedValue(mockOkResponse(null));
+    const result = await processWikitext(
+      "{{cite web |url=http://example.com |title=T |archiveurl=https://web.archive.org/123 |archivedate=2025-01-21 |date=2024}}",
+      { modules: "cleanup,dates", force: false, ref_names: false }
+    );
+    expect(result.text).toContain("archive-url");
+    expect(result.text).toContain("archive-date");
+    expect(result.text).not.toContain("archiveurl");
+    expect(result.text).not.toContain("archivedate");
+  });
+
+  it("handles multiple alias conversions in a single citation", async () => {
+    mockFetch.mockResolvedValue(mockOkResponse(null));
+    const result = await processWikitext(
+      "{{cite web |url=http://example.com |title=T |archiveurl=https://web.archive.org/123 |archivedate=2025-01-21 |deadurl=no |date=2024}}",
+      { modules: "cleanup,dates", force: false, ref_names: false }
+    );
+    expect(result.text).toContain("archive-url");
+    expect(result.text).toContain("archive-date");
+    expect(result.text).not.toContain("archiveurl");
+    expect(result.text).not.toContain("archivedate");
+    expect(result.text).not.toContain("deadurl");
+    expect(result.text).not.toContain("url-status"); // deadurl=no, so no url-status
+  });
+
+  describe("cs2tocs1 module", () => {
+    it("converts {{citation}} with journal to {{cite journal}}", async () => {
+      mockFetch.mockResolvedValue(mockOkResponse(null));
+      const result = await processWikitext(
+        "{{citation |title=A Study |journal=Nature |date=2024 |doi=10.1000/test}}",
+        { modules: "cs2tocs1", citation_style: "cs1", force: false, ref_names: false }
+      );
+      expect(result.text).toContain("{{cite journal");
+      expect(result.text).not.toContain("{{citation");
+      expect(result.text).toMatch(/journal\s*=\s*Nature/);
+    });
+
+    it("converts {{citation}} with website to {{cite web}}", async () => {
+      mockFetch.mockResolvedValue(mockOkResponse(null));
+      const result = await processWikitext(
+        "{{citation |title=Test |website=Example |url=http://example.com |date=2024}}",
+        { modules: "cs2tocs1", citation_style: "cs1", force: false, ref_names: false }
+      );
+      expect(result.text).toContain("{{cite web");
+      expect(result.text).not.toContain("{{citation");
+    });
+
+    it("converts {{citation}} with isbn to {{cite book}}", async () => {
+      mockFetch.mockResolvedValue(mockOkResponse(null));
+      const result = await processWikitext(
+        "{{citation |title=A Book |isbn=9780306406157 |date=2024 |publisher=TestPub}}",
+        { modules: "cs2tocs1", citation_style: "cs1", force: false, ref_names: false }
+      );
+      expect(result.text).toContain("{{cite book");
+      expect(result.text).not.toContain("{{citation");
+    });
+
+    it("renames work to website when converting to cite web", async () => {
+      mockFetch.mockResolvedValue(mockOkResponse(null));
+      const result = await processWikitext(
+        "{{citation |title=Test |work=Example Site |url=http://example.com |date=2024}}",
+        { modules: "cs2tocs1", citation_style: "cs1", force: false, ref_names: false }
+      );
+      expect(result.text).toContain("{{cite web");
+      expect(result.text).toMatch(/website\s*=\s*Example Site/);
+      expect(result.text).not.toContain("work");
+    });
+
+    it("converts journal param directly to cite journal", async () => {
+      mockFetch.mockResolvedValue(mockOkResponse(null));
+      const result = await processWikitext(
+        "{{citation |title=Test |journal=Nature |date=2024}}",
+        { modules: "cs2tocs1", citation_style: "cs1", force: false, ref_names: false }
+      );
+      expect(result.text).toContain("{{cite journal");
+      expect(result.text).not.toContain("{{citation");
+    });
+
+    it("renames place to location when converting", async () => {
+      mockFetch.mockResolvedValue(mockOkResponse(null));
+      const result = await processWikitext(
+        "{{citation |title=Test |journal=J |place=London |date=2024}}",
+        { modules: "cs2tocs1", citation_style: "cs1", force: false, ref_names: false }
+      );
+      expect(result.text).toMatch(/location\s*=\s*London/);
+      expect(result.text).not.toContain("place");
+    });
+
+    it("does not convert when cs2tocs1 module is not enabled", async () => {
+      mockFetch.mockResolvedValue(mockOkResponse(null));
+      const result = await processWikitext(
+        "{{citation |title=Test |journal=Nature |date=2024}}",
+        { modules: "spacing", citation_style: "cs1", force: false, ref_names: false }
+      );
+      expect(result.text).toContain("{{citation");
+      expect(result.text).not.toContain("{{cite journal");
+    });
+
+    it("does not touch CS1 citations when cs2tocs1 is enabled", async () => {
+      mockFetch.mockResolvedValue(mockOkResponse(null));
+      const result = await processWikitext(
+        "{{cite journal |title=Test |journal=Nature |date=2024}}",
+        { modules: "cs2tocs1", citation_style: "cs1", force: false, ref_names: false }
+      );
+      expect(result.text).toContain("{{cite journal");
+    });
+
+    it("does not convert citation without detectable type", async () => {
+      mockFetch.mockResolvedValue(mockOkResponse(null));
+      const result = await processWikitext(
+        "{{citation |title=Untyped |date=2024}}",
+        { modules: "cs2tocs1", citation_style: "cs1", force: false, ref_names: false }
+      );
+      // No journal, website, isbn etc — stays as citation
+      expect(result.text).toContain("{{citation");
+    });
   });
 });

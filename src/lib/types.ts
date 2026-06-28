@@ -13,6 +13,7 @@ export interface StorageSettings {
   rename_ref_names?: boolean;
   skip_org_authors?: boolean;
   spacing_style?: string;
+  citation_style?: "cs1";
   sfn_page_conflict?: "rp" | "both" | "cite";
   crossref_email?: string;
   ncbi_api_key?: string;

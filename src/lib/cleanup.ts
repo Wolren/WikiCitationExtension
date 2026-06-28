@@ -10,6 +10,95 @@ const TYPO_MAP: Record<string, string> = {
   pulisher: "publisher",
 };
 
+/**
+ * Wikipedia citation parameter aliases — the canonical (hyphenated) form
+ * is the right one, but many articles still use the alias form.
+ */
+const PARAM_ALIASES: Record<string, string> = {
+  // Aliases confirmed in Module:Citation/CS1/Configuration
+  // AccessDate: {'access-date', 'accessdate'}
+  accessdate: "access-date",
+  // ArchiveDate: {'archive-date', 'archivedate'}
+  archivedate: "archive-date",
+  // ArchiveURL: {'archive-url', 'archiveurl'}
+  archiveurl: "archive-url",
+  // BookTitle: {'book-title', 'booktitle'}
+  booktitle: "book-title",
+  // Date: {'date', 'air-date', 'airdate'}
+  airdate: "date",
+  "air-date": "date",
+  // DisplayAuthors: {'display-authors', 'display-subjects'}
+  displayauthors: "display-authors",
+  "display-subjects": "display-authors",
+  // Language: {'language', 'lang'}
+  lang: "language",
+  // MailingList: {'mailing-list', 'mailinglist'}
+  mailinglist: "mailing-list",
+  // MapURL: {'map-url', 'mapurl'}
+  mapurl: "map-url",
+  // NoPP: {'no-pp', 'nopp'}
+  nopp: "no-pp",
+  // OrigDate: {'orig-date', 'orig-year', 'origyear'}
+  origyear: "orig-date",
+  "orig-year": "orig-date",
+  // SeriesLink: {'series-link', 'serieslink'}
+  serieslink: "series-link",
+  // SeriesNumber: {'series-number', 'series-no'}
+  "series-no": "series-number",
+  // TitleLink: {'title-link', 'episode-link', 'episodelink'}
+  episodelink: "title-link",
+  // AuthorList-Link: {"author-link#", "author#-link", "subject-link#",
+  //                    "subject#-link", "authorlink#", "author#link"}
+  authorlink: "author-link",
+  authorlink1: "author-link1",
+  authorlink2: "author-link2",
+  authorlink3: "author-link3",
+  authorlink4: "author-link4",
+  authorlink5: "author-link5",
+  "author1-link": "author-link1",
+  "author2-link": "author-link2",
+  "author3-link": "author-link3",
+  "author4-link": "author-link4",
+  "author5-link": "author-link5",
+  subjectlink: "author-link",
+  "subject-link": "author-link",
+  // EditorList-Link: {"editor-link#", "editor#-link"}
+  // Note: the alias form is editor1-link (NOT editorlink1)
+  "editor1-link": "editor-link1",
+  "editor2-link": "editor-link2",
+  "editor3-link": "editor-link3",
+  "editor4-link": "editor-link4",
+  "editor5-link": "editor-link5",
+  // TranslatorList-Link: {'translator-link#', 'translator#-link'}
+  // Note: the alias form is translator1-link (NOT translatorlink1)
+  "translator1-link": "translator-link1",
+  "translator2-link": "translator-link2",
+  "translator3-link": "translator-link3",
+  "translator4-link": "translator-link4",
+  "translator5-link": "translator-link5",
+  // InterviewerList-Link: {'interviewer-link#', 'interviewer#-link'}
+  "interviewer1-link": "interviewer-link1",
+  "interviewer2-link": "interviewer-link2",
+  "interviewer3-link": "interviewer-link3",
+  "interviewer4-link": "interviewer-link4",
+  "interviewer5-link": "interviewer-link5",
+  // ChapterURL: {'chapter-url', 'contribution-url', 'entry-url',
+  //               'article-url', 'section-url'}
+  // These are proper param names, not aliases — don't map.
+  // ConferenceURL: 'conference-url' — no alias (single string).
+};
+
+/** deadurl="yes" → url-status="dead", deadurl="no" → remove */
+function normalizeDeadurl(p: Record<string, string>, changes: string[]): void {
+  if (!("deadurl" in p)) return;
+  const v = p.deadurl.toLowerCase();
+  if (v === "yes" || v === "y" || v === "true") {
+    if (!p["url-status"]) p["url-status"] = "dead";
+  }
+  delete p.deadurl;
+  changes.push("deadurl-to-url-status");
+}
+
 const NONE_VALUES = new Set(["none", "n/a", "-"]);
 
 const VALID_URL_STATUSES = new Set(["live", "dead", "unfit", "usurped", "bot: unknown"]);
@@ -109,6 +198,58 @@ function cleanPrefixes(p: Record<string, string>, changes: string[]): void {
   }
 }
 
+function normalizeAliases(p: Record<string, string>, changes: string[]): void {
+  for (const [alias, canonical] of Object.entries(PARAM_ALIASES)) {
+    if (alias in p && !(canonical in p)) {
+      p[canonical] = p[alias];
+      delete p[alias];
+      changes.push("alias-" + alias + "-to-" + canonical);
+    } else if (alias in p && canonical in p) {
+      // Both exist; remove the alias, keep the canonical
+      delete p[alias];
+      changes.push("removed-duplicate-" + alias);
+    }
+  }
+  normalizeDeadurl(p, changes);
+}
+
+/** Template-specific aliases: number → issue for periodical templates only.
+ *  In cite techreport / cite patent, number has a different meaning. */
+function normalizeTemplateSpecificAliases(p: Record<string, string>, tt: string | undefined, changes: string[]): void {
+  const periodicalTypes = ["cite journal", "cite magazine", "cite news", "cite encyclopedia"];
+  const isPeriodical = tt && periodicalTypes.includes(tt);
+  const hasPeriodicalParam = p.journal || p.newspaper || p.magazine;
+  if ((isPeriodical || (tt === "citation" && hasPeriodicalParam)) && "number" in p && !("issue" in p)) {
+    p.issue = p.number;
+    delete p.number;
+    changes.push("alias-number-to-issue");
+  } else if ((isPeriodical || (tt === "citation" && hasPeriodicalParam)) && "number" in p && "issue" in p) {
+    delete p.number;
+    changes.push("removed-duplicate-number");
+  }
+}
+
+/** Vancouver-style author name normalization: split "Last, First" in last# fields.
+ *  Wikipedia flags this as "Vancouver style error: name in name N" when the
+ *  last field contains a comma — it should only contain the surname. */
+function normalizeVancouverNames(p: Record<string, string>, changes: string[]): void {
+  for (let i = 0; i <= 9; i++) {
+    const suffix = i === 0 ? "" : String(i);
+    const lastKey = `last${suffix}`;
+    const firstKey = `first${suffix}`;
+    if (!p[lastKey]) continue;
+    const commaIdx = p[lastKey].indexOf(",");
+    if (commaIdx === -1) continue;
+    const surname = p[lastKey].slice(0, commaIdx).trim();
+    const given = p[lastKey].slice(commaIdx + 1).trim();
+    if (surname && given && !p[firstKey]) {
+      p[lastKey] = surname;
+      p[firstKey] = given;
+      changes.push(`vancouver-split-last${suffix}`);
+    }
+  }
+}
+
 function detectPlaceholders(p: Record<string, string>, changes: string[]): void {
   if (p.title && PLACEHOLDER_TITLES.has(p.title.toLowerCase())) {
     changes.push("placeholder-title");
@@ -127,19 +268,31 @@ function enforcePeriodicalRules(p: Record<string, string>, tt: string | undefine
     for (const f of periodicalFields) {
       if (p[f]) { delete p[f]; conflict = true; }
     }
-    if (p.work) { p.website = p.work; delete p.work; changes.push("work-to-website"); conflict = true; }
+    if (p.work) {
+      if (!p.website) { p.website = p.work; changes.push("work-to-website"); }
+      delete p.work; conflict = true;
+    }
   } else if (tt === "cite journal") {
-    if (p.work) { delete p.work; conflict = true; }
     if (p.magazine) { delete p.magazine; conflict = true; }
     if (p.newspaper) { delete p.newspaper; conflict = true; }
+    if (p.work) {
+      if (!p.journal) { p.journal = p.work; changes.push("work-to-journal"); }
+      delete p.work; conflict = true;
+    }
   } else if (tt === "cite news") {
     if (p.journal) { delete p.journal; conflict = true; }
     if (p.magazine) { delete p.magazine; conflict = true; }
-    if (p.work) { p.website = p.work; delete p.work; changes.push("work-to-website"); conflict = true; }
+    if (p.work) {
+      if (!p.newspaper) { p.newspaper = p.work; changes.push("work-to-newspaper"); }
+      delete p.work; conflict = true;
+    }
   } else if (tt === "cite magazine") {
-    if (p.work) { delete p.work; conflict = true; }
     if (p.journal) { delete p.journal; conflict = true; }
     if (p.newspaper) { delete p.newspaper; conflict = true; }
+    if (p.work) {
+      if (!p.magazine) { p.magazine = p.work; changes.push("work-to-magazine"); }
+      delete p.work; conflict = true;
+    }
   }
   if (conflict) changes.push("periodical-conflict");
 
@@ -351,12 +504,16 @@ function detectTypeAndRename(
 export function cleanupCitation(
   params: Record<string, string>,
   options?: { templateType?: string; force?: boolean }
-): { params: Record<string, string>; changes: string[]; renameParams?: Record<string, string>; newTemplateType?: string } {
+): { params: Record<string, string>; changes: string[]; renameParams?: Record<string, string>; newTemplateType?: string; removedKeys?: string[] } {
   const p = { ...params };
   const changes: string[] = [];
   const tt = options?.templateType;
   const hadWork = !!p.work;
+  const origKeys = new Set(Object.keys(p));
 
+  normalizeAliases(p, changes);
+  normalizeTemplateSpecificAliases(p, tt, changes);
+  normalizeVancouverNames(p, changes);
   removeEmptyValues(p, changes);
   removeNoneValues(p, changes);
   fixTypos(p, changes);
@@ -385,7 +542,10 @@ export function cleanupCitation(
   fixVauthors(p, changes);
   warnMissingRequired(p, tt, changes);
 
-  return { params: p, changes, ...detectTypeAndRename(p, tt, hadWork) };
+  // Track which original keys were removed (so the caller can remove them from the body)
+  const removedKeys = [...origKeys].filter(k => !(k in p));
+
+  return { params: p, changes, ...detectTypeAndRename(p, tt, hadWork), removedKeys: removedKeys.length > 0 ? removedKeys : undefined };
 }
 
 export function checkEssentialParams(params: Record<string, string>): string[] {
@@ -401,6 +561,8 @@ export function checkEssentialParams(params: Record<string, string>): string[] {
 
 export function cleanupCitationBody(body: string): string {
   return body
+    .replace(/\t+/g, " ")
+    .replace(/[ \t]{2,}/g, " ")
     .replace(/\|{2,}/g, "|")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")

@@ -1,4 +1,4 @@
-import { findCitations, parseParams, generateRefName, escapeRe } from "./lib/wikitext";
+import { findCitations, parseParams, generateRefName, escapeRe, detectCitationType } from "./lib/wikitext";
 import { expandCitation } from "./lib/expand";
 import { cleanupCitation, cleanupCitationBody, addArchiveUrls } from "./lib/cleanup";
 import { normalizeDate } from "./lib/dates";
@@ -975,11 +975,13 @@ async function processCitationData(
           if (params[old] !== undefined) {
             params[next] = params[old];
             delete params[old];
+            removedKeys.push(old);
           }
         }
       }
       if (cl.newTemplateType) newTemplateType = cl.newTemplateType;
       if (cl.changes.length > 0) meta.cleaned = true;
+      if (cl.removedKeys) removedKeys.push(...cl.removedKeys);
     }
   }
 
@@ -1003,17 +1005,41 @@ async function processCitationData(
       for (const k of oldKeys) {
         if (!(k in params)) removedKeys.push(k);
       }
+      // Vancouver mode creates vauthors but keeps last/first —
+      // remove last/first to avoid "More than one of author-name-list" error
+      if (authorOpts.style === "vancouver" && params.vauthors) {
+        for (let i = 0; i <= 9; i++) {
+          const s = i === 0 ? "" : String(i);
+          if (params["last" + s]) { delete params["last" + s]; removedKeys.push("last" + s); }
+          if (params["first" + s]) { delete params["first" + s]; removedKeys.push("first" + s); }
+          if (params["author" + s]) { delete params["author" + s]; removedKeys.push("author" + s); }
+        }
+      }
       changed = true;
       meta.authorsProcessed = true;
     }
   }
 
-  if (moduleEnabled(mods, "dates") && (params["date"] || settings.force)) {
-    const norm = params["date"] ? normalizeDate(params["date"]) : "";
-    if (norm && norm !== params["date"]) {
-      params["date"] = norm;
-      changed = true;
-      meta.datesFixed = true;
+  if (moduleEnabled(mods, "dates") && (params["date"] || params["access-date"] || params["archive-date"] || settings.force)) {
+    // Normalize the main date field
+    if (params["date"]) {
+      const norm = normalizeDate(params["date"]);
+      if (norm && norm !== params["date"]) {
+        params["date"] = norm;
+        changed = true;
+        meta.datesFixed = true;
+      }
+    }
+    // Also normalize access-date and archive-date
+    for (const field of ["access-date", "archive-date"] as const) {
+      if (params[field]) {
+        const norm = normalizeDate(params[field]);
+        if (norm && norm !== params[field]) {
+          params[field] = norm;
+          changed = true;
+          meta.datesFixed = true;
+        }
+      }
     }
   }
 
@@ -1067,6 +1093,35 @@ async function processCitationData(
       params["archive-date"] = adNorm;
       changed = true;
       meta.datesFixed = true;
+    }
+  }
+
+  // ── CS2 → CS1 conversion: {{citation}} → {{cite xxx}} ────────────────
+  if (moduleEnabled(mods, "cs2tocs1") && citation.template === "citation" && settings.citation_style === "cs1") {
+    const detected = detectCitationType(params);
+    if (detected.new) {
+      newTemplateType = detected.new;
+      changed = true;
+
+      // Apply CS2→CS1 param renames
+      if (detected.new === "cite journal" && params.work !== undefined) {
+        params.journal = params.work;
+        delete params.work;
+        removedKeys.push("work");
+      } else if (detected.new === "cite web" && params.work !== undefined) {
+        params.website = params.work;
+        delete params.work;
+        removedKeys.push("work");
+      } else if (detected.new === "cite news" && params.work !== undefined) {
+        params.website = params.work;
+        delete params.work;
+        removedKeys.push("work");
+      }
+      if (params.place !== undefined) {
+        params.location = params.place;
+        delete params.place;
+        removedKeys.push("place");
+      }
     }
   }
 
