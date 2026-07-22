@@ -79,8 +79,9 @@ Other reports suggest that participation in plural communities might remedy some
 describe("convertToSfn on real article", () => {
   const result = convertToSfn(article);
 
-  it("runs without error", () => {
-    expect(() => convertToSfn(article)).not.toThrow();
+  it("produces output with sfn templates", () => {
+    expect(result).toContain("{{sfn|");
+    expect(result).toContain("== Sources ==");
   });
 
   it("no Schechter {{sfn}} body appears more than once", () => {

@@ -362,7 +362,7 @@ function fixUrlSpaces(p: Record<string, string>, changes: string[]): void {
 
 function checkAuthorNames(p: Record<string, string>, changes: string[]): void {
   for (let i = 0; i <= 9; i++) {
-    const s = i === 0 ? "" : String(i + 1);
+    const s = i === 0 ? "" : String(i);
     if (p[`first${s}`] && !p[`last${s}`]) {
       changes.push("first-without-last" + s);
     }

@@ -517,8 +517,6 @@ describe("fuzz: error recovery under stress", () => {
     const abortTimer = setTimeout(() => controller.abort(), 5);
     const result = await processWikitext(longInput, BASE_SETTINGS, controller.signal);
     clearTimeout(abortTimer);
-    // Either aborted with partial stats, or completed — both acceptable
-    expect(result.aborted === true || result.aborted === false).toBe(true);
     expect(result.stats.total).toBeGreaterThanOrEqual(0);
     expect(typeof result.text).toBe("string");
   });
