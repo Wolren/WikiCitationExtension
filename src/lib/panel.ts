@@ -6,8 +6,6 @@ import { generateDiff } from "./diff";
 import { detectWiki, isEditPage, getPageTitle as getWikiPageTitle, probeApiUrl } from "../wiki-detector";
 import type { ProcessStats, ProcessingError } from "./types";
 
-// ── DOM element IDs ────────────────────────────────────────────────
-
 export const BUTTON_ID = "wikifix-btn";
 export const PANEL_ID = "wikifix-panel";
 export const NOTE_ID = "wikifix-note";
@@ -303,7 +301,7 @@ export function addButton(): void {
 
 // ── Progress/notification UI ───────────────────────────────────────
 
-import { _abortController, _undoEditor, _undoOriginalText } from "../content";
+import { _abortController, _undoEditor, _undoOriginalText } from "./state";
 
 export function showProgress(current: number, total: number, message: string, barFill?: number): void {
   let bar = document.getElementById("wikifix-progress-bar");

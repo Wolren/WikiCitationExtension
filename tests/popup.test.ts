@@ -277,3 +277,97 @@ describe("popup reset", () => {
     expect(spacingSelect.value).toBe("");
   });
 });
+
+describe("popup dependency warnings", () => {
+  it("blocks checkbox change when parent module is disabled", async () => {
+    // Keep SFN unchecked
+    const sfnCb = document.querySelector('[data-module="sfn"]') as HTMLInputElement;
+    sfnCb.checked = false;
+
+    document.dispatchEvent(new Event("DOMContentLoaded"));
+    await tick();
+
+    // Try to change sfn_page_conflict while SFN module is off
+    const conflictSelect = document.getElementById("sfn_page_conflict") as HTMLSelectElement;
+    // dispatching focus first stores prevValue in popup.ts
+    conflictSelect.dispatchEvent(new Event("focus", { bubbles: true }));
+    conflictSelect.value = "both";
+    conflictSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    await tick();
+
+    // Value should have been reverted to original
+    expect(conflictSelect.value).toBe("rp");
+  });
+
+  it("blocks author dropdown when authors module is off", async () => {
+    const authorsCb = document.querySelector('[data-module="authors"]') as HTMLInputElement;
+    authorsCb.checked = false;
+
+    document.dispatchEvent(new Event("DOMContentLoaded"));
+    await tick();
+
+    // dispatching mousedown should not open the select
+    const authorStyle = document.getElementById("author_style") as HTMLSelectElement;
+    const mouseEvent = new MouseEvent("mousedown", { bubbles: true });
+    const preventDefaultSpy = vi.spyOn(mouseEvent, "preventDefault");
+    authorStyle.dispatchEvent(mouseEvent);
+
+    expect(preventDefaultSpy).toHaveBeenCalled();
+  });
+});
+
+describe("popup wiki variant", () => {
+  it("shows wiki variant badge when variant is set", async () => {
+    // Set up wiki variant badge element
+    const badge = document.createElement("span");
+    badge.id = "wiki-badge";
+    document.querySelector(".container")!.appendChild(badge);
+
+    document.dispatchEvent(new Event("DOMContentLoaded"));
+    await tick();
+
+    // runtime.sendMessage returns { variant: "wikipedia" } by default
+    expect(badge.textContent).toBe("wikipedia");
+  });
+
+  it("disables sfn module on non-Wikipedia wikis", async () => {
+    // Override sendMessage for this test
+    mockBrowser.runtime.sendMessage = vi.fn(async () => ({ variant: "fandom" }));
+
+    // Add badge
+    const badge = document.createElement("span");
+    badge.id = "wiki-badge";
+    document.querySelector(".container")!.appendChild(badge);
+
+    document.dispatchEvent(new Event("DOMContentLoaded"));
+    await tick();
+
+    const sfnCb = document.querySelector('[data-module="sfn"]') as HTMLInputElement;
+    expect(sfnCb.disabled).toBe(true);
+    expect(sfnCb.checked).toBe(false);
+  });
+});
+
+describe("popup edge cases", () => {
+  it("handles corrupt JSON in stored settings gracefully", async () => {
+    mockStorage["wikifix_settings_wikipedia"] = "corrupt-json-not-an-object";
+
+    document.dispatchEvent(new Event("DOMContentLoaded"));
+    await tick();
+
+    // Should fall back to defaults without crashing
+    const expandCb = document.querySelector('[data-module="expand"]') as HTMLInputElement;
+    expect(expandCb).toBeTruthy();
+  });
+
+  it("handles empty settings gracefully", async () => {
+    mockStorage["wikifix_settings_wikipedia"] = {};
+
+    document.dispatchEvent(new Event("DOMContentLoaded"));
+    await tick();
+
+    // Should not crash with empty settings
+    const expandCb = document.querySelector('[data-module="expand"]') as HTMLInputElement;
+    expect(expandCb.checked).toBe(true); // default
+  });
+});

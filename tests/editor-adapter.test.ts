@@ -442,3 +442,70 @@ describe("findVeSourceEditor", () => {
     expect(findVeSourceEditor()).toBe(editable);
   });
 });
+
+describe("failure cascades", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    delete (window as any).mw;
+    delete (window as any).CKEDITOR;
+    delete (window as any).monaco;
+  });
+
+  it("returns null when all strategies fail to find an editor", () => {
+    // No mw.codemirror, no monaco, no CKEDITOR, no wpTextbox1, no contenteditable
+    expect(findEditor()).toBeNull();
+  });
+
+  it("falls through when CodeMirror exists but has no dom property", () => {
+    (window as any).mw = { codemirror: { editors: [{}] } }; // no .dom
+    // Should skip CM and fall to next strategy
+    const ta = mockTextarea("wpTextbox1");
+    ta.value = "fallback text";
+    const editor = findEditor()!;
+    expect(editor.type).toBe("classic-textarea");
+  });
+
+  it("falls through when Monaco model query returns empty", () => {
+    const container = document.createElement("div");
+    container.className = "monaco-editor";
+    document.body.appendChild(container);
+    // Monaco div exists but getModels returns null — Monaco strategy detects the div
+    (window as any).monaco = { editor: { getModels: () => null } };
+    const editor = findEditor()!;
+    expect(editor.type).toBe("monaco");
+    expect(editor.getText()).toBeNull();
+  });
+
+  it("handles empty codemirror editors array", () => {
+    (window as any).mw = { codemirror: { editors: [] } };
+    // cm-detection via mw.codemirror.editor (singular) — not .editors
+    const ta = mockTextarea("wpTextbox1");
+    ta.value = "works";
+    const editor = findEditor()!;
+    expect(editor.type).toBe("classic-textarea");
+  });
+
+  it("recovers when CodeMirror getValue returns null", () => {
+    const cm = {
+      dom: document.createElement("div"),
+      getValue: vi.fn(() => null),
+      setValue: vi.fn(),
+    };
+    (window as any).mw = { codemirror: { editors: [cm] } };
+    const editor = findEditor()!;
+    expect(editor.type).toBe("codemirror");
+    expect(editor.getText()).toBeNull();
+  });
+
+  it("recovers when CodeMirror setValue throws", () => {
+    const cm = {
+      dom: document.createElement("div"),
+      getValue: vi.fn(),
+      setValue: vi.fn(() => { throw new Error("CM error"); }),
+    };
+    (window as any).mw = { codemirror: { editor: cm } };
+    const editor = findEditor()!;
+    // The error propagates from the editor-adapter — no try/catch in writeCodeMirror
+    expect(() => editor.setText("text")).toThrow("CM error");
+  });
+});

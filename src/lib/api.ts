@@ -91,7 +91,12 @@ function getRateLimiter(domain: string): RateLimiter {
 const inflightRequests = new Map<string, Promise<unknown>>();
 
 function dedupKey(url: string, options?: RequestInit): string {
-  return options?.method === 'POST' ? url : url;
+  if (options?.method === 'POST') {
+    // For POST requests, include body in the key for proper dedup
+    const body = typeof options.body === 'string' ? options.body : JSON.stringify(options.body);
+    return `POST:${url}:${body}`;
+  }
+  return url;
 }
 
 async function dedupedFetch<T>(url: string, options?: RequestInit, signal?: AbortSignal): Promise<T | null> {

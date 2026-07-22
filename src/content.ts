@@ -20,6 +20,7 @@ import {
   injectStyles, addButton, showNotification, showProgress,
   hideProgress, showSuccessWithUndo, showDiffPanel, resetPanel,
 } from "./lib/panel";
+import { _abortController, _processing, _undoEditor, _undoOriginalText, setAbortController, setProcessing, setUndoState } from "./lib/state";
 
 // ── Re-exports for test compatibility ──────────────────────────────
 
@@ -36,12 +37,9 @@ export {
   BUTTON_ID, PANEL_ID, NOTE_ID,
 } from "./lib/panel";
 
-// ── Shared module-level state (also imported by panel.ts) ──────────
+// ── Shared module-level state ───────────────────────────────────────
 
-export let _abortController: AbortController | null = null;
-export let _processing = false;
-export let _undoEditor: EditorHandle | null = null;
-export let _undoOriginalText: string | null = null;
+export { _abortController, _processing, _undoEditor, _undoOriginalText } from "./lib/state";
 let _isOffline = false;
 
 export const STORAGE_KEY = "wikifix_settings";
@@ -119,8 +117,8 @@ if (typeof browser !== "undefined") {
 /** @internal exported for testing */
 export async function onClick(): Promise<void> {
   if (_processing) return;
-  _processing = true;
-  _abortController = new AbortController();
+  setProcessing(true);
+  setAbortController(new AbortController());
   try {
     const settings = await getSettings();
     if (isEditPage()) {
@@ -133,8 +131,8 @@ export async function onClick(): Promise<void> {
     console.error("[WikiCitationExtension]", e);
     showNotification("error", t("errorProcessing", msg));
   } finally {
-    _processing = false;
-    _abortController = null;
+    setProcessing(false);
+    setAbortController(null);
     hideProgress();
   }
 }
@@ -244,8 +242,7 @@ export async function fixInEditor(settings: StorageSettings): Promise<void> {
   }
 
   // Register undo state after successful write
-  _undoEditor = editor;
-  _undoOriginalText = wikitext;
+  setUndoState(editor, wikitext);
 
   // Selection mode: no full diff, just confirm and show stats
   if (isSelectionMode) {
