@@ -138,7 +138,18 @@ export async function expandCitation(
   const wikiLang = detectWikiLanguage();
 
   if (doi) {
-    const data = await fetchCrossref(doi) || await fetchDataCite(doi);
+    // Fire independent API calls in parallel for DOI expansion
+    const [crossrefResult, dataCiteResult, pmidResult, unpaywallResult] = await Promise.allSettled([
+      fetchCrossref(doi),
+      fetchDataCite(doi).catch(() => null),
+      searchNCBIPmid(doi),
+      fetchUnpaywall(doi),
+    ]);
+
+    // Process CrossRef/DataCite metadata (whichever resolved first)
+    const crossrefData = crossrefResult.status === 'fulfilled' ? crossrefResult.value : null;
+    const dataCiteData = dataCiteResult.status === 'fulfilled' ? dataCiteResult.value : null;
+    const data = crossrefData || dataCiteData;
     if (data) {
       const extra = data as any;
       if (extra.title?.[0] && fill("title")) { params.title = extra.title[0]; changes.push("expanded-title"); }
@@ -171,18 +182,24 @@ export async function expandCitation(
       }
     }
 
-    if (!params.pmid) {
-      const foundPmid = await searchNCBIPmid(doi);
-      if (foundPmid) { params.pmid = foundPmid; changes.push("found-pmid"); }
+    // Handle PMID search result (parallel, no dependency on crossref)
+    if (!params.pmid && pmidResult.status === 'fulfilled' && pmidResult.value) {
+      params.pmid = pmidResult.value;
+      changes.push("found-pmid");
     }
 
-    if (!params.pmc && params.pmid) {
-      const foundPmc = await searchNCBIPmc(params.pmid);
+    // PMC search depends on PMID — only fires when that's available
+    const foundPmidValue = pmidResult.status === 'fulfilled' ? pmidResult.value : null;
+    if (!params.pmc && (params.pmid || foundPmidValue)) {
+      const pmidToUse = params.pmid || foundPmidValue!;
+      const foundPmc = await searchNCBIPmc(pmidToUse);
       if (foundPmc) { params.pmc = foundPmc; changes.push("found-pmc"); }
     }
 
-    if (!params["url"] && !params["doi-access"]) {
-      const oa = await fetchUnpaywall(doi);
+    // Handle Unpaywall OA URL result (parallel, no dependency)
+    if (!params["url"] && !params["doi-access"]
+        && unpaywallResult.status === 'fulfilled' && unpaywallResult.value) {
+      const oa = unpaywallResult.value;
       if (oa?.best_oa_location?.url && fill("url")) {
         params["url"] = oa.best_oa_location.url;
         params["url-access"] = "free";
