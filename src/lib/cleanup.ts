@@ -355,11 +355,33 @@ function fixNbsp(p: Record<string, string>, changes: string[]): void {
   if (found) changes.push("nbsp-fix");
 }
 
+const HTTPS_UPGRADE_DOMAINS = [
+  "web.archive.org",
+  "archive.org",
+  "en.wikipedia.org",
+  "wikidata.org",
+  "commons.wikimedia.org",
+  "doi.org",
+  "pubmed.ncbi.nlm.nih.gov",
+  "ncbi.nlm.nih.gov",
+];
+
 function fixUrlScheme(p: Record<string, string>, changes: string[]): void {
   for (const k of URL_FIELDS) {
-    if (p[k] && !/^https?:\/\//i.test(p[k])) {
+    if (!p[k]) continue;
+    if (!/^https?:\/\//i.test(p[k])) {
       p[k] = "https://" + p[k];
       changes.push("fixed-url-scheme-" + k);
+    } else {
+      // Upgrade known HTTPS-capable domains from http:// to https://
+      for (const domain of HTTPS_UPGRADE_DOMAINS) {
+        const httpPattern = new RegExp(`^http://${domain.replace(/\./g, "\\.")}`, "i");
+        if (httpPattern.test(p[k])) {
+          p[k] = p[k].replace(httpPattern, `https://${domain}`);
+          changes.push("upgraded-http-to-https-" + domain);
+          break;
+        }
+      }
     }
   }
 }
