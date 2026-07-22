@@ -585,11 +585,11 @@ describe("convertToSfn", () => {
     // Self-closing ref reuses
     const inReuses = (input.match(/<ref name="[^"]*"\s*\/>/g) || []).length;
     // {{rp}} and {{Reference page}} templates (consumed or preserved)
-    const inRp = (input.match(/\{\{\s*(?:rp|reference page)\s*\|/gi) || []).length;
+    const _inRp = (input.match(/\{\{\s*(?:rp|reference page)\s*\|/gi) || []).length;
     // {{sup}} templates (should be preserved now)
-    const inSupTemplate = (input.match(/\{\{\s*sup\s*\|/gi) || []).length;
+    const _inSupTemplate = (input.match(/\{\{\s*sup\s*\|/gi) || []).length;
     // HTML <sup> tags (consumed, like rp)
-    const inSupHtml = (input.match(/<sup[^>]*>.*?<\/sup>/gi) || []).length;
+    const _inSupHtml = (input.match(/<sup[^>]*>.*?<\/sup>/gi) || []).length;
 
     // ── Output side ──
     // Generated sfns
@@ -597,14 +597,14 @@ describe("convertToSfn", () => {
     // Remaining ref reuses
     const outReuses = (result.match(/<ref name="[^"]*"\s*\/>/g) || []).length;
     // Remaining {{rp}}/{{Reference page}}
-    const outRp = (result.match(/\{\{\s*(?:rp|reference page)\s*\|/gi) || []).length;
+    const _outRp = (result.match(/\{\{\s*(?:rp|reference page)\s*\|/gi) || []).length;
     // Remaining {{sup}}
     const outSupTemplate = (result.match(/\{\{\s*sup\s*\|/gi) || []).length;
     // Remaining <sup>
     const outSupHtml = (result.match(/<sup[^>]*>.*?<\/sup>/gi) || []).length;
     // Remaining colon-suffix
     // eslint-disable-next-line no-irregular-whitespace
-    const outColon = (result.match(/: ?\\d[\\d\\-\\u2013,]*/g) || []).filter(m => /^: ?\\d/.test(m)).length;
+    const _outColon = (result.match(/: ?\\d[\\d\\-\\u2013,]*/g) || []).filter(m => /^: ?\\d/.test(m)).length;
 
     // ── Integrity rules ──
     // 1. Every ref reuse → either sfn or remaining ref
@@ -643,8 +643,8 @@ describe("convertToSfn", () => {
 
     // 📊 Integrity: count all input markers 📊
     const inReuses = (input.match(/<ref name="[^"]*"\s*\/>/g) || []).length;
-    const inRp = (input.match(/\{\{\s*(?:rp|reference page)\s*\|/gi) || []).length;
-    const inSupTmpl = (input.match(/\{\{\s*sup\s*\|/gi) || []).length;
+    const _inRp = (input.match(/\{\{\s*(?:rp|reference page)\s*\|/gi) || []).length;
+    const _inSupTmpl = (input.match(/\{\{\s*sup\s*\|/gi) || []).length;
 
     // Count output
     const outSfn = (result.match(/\{\{sfn\|/g) || []).length;
