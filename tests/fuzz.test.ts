@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeAll, afterEach } from "vitest";
 import { processWikitext } from "../src/content";
 import { findCitations, parseParams } from "../src/lib/wikitext";
-import { cleanupCitation } from "../src/lib/cleanup";
+import { cleanupCitation, cleanupCitationBody } from "../src/lib/cleanup";
+import { convertToSfn } from "../src/lib/sfn";
+import { normalizeDate } from "../src/lib/dates";
+import { encrypt, decrypt } from "../src/lib/crypto";
 import { resetApiProbeCache } from "../src/wiki-detector";
 import type { StorageSettings } from "../src/lib/types";
 
@@ -749,6 +752,89 @@ describe("fuzz: cleanupCitation invariants", () => {
       expect(result.changes).toBeInstanceOf(Array);
       for (const key of Object.keys(result.params)) {
         expect(key).toEqual(key.toLowerCase());
+      }
+    });
+  }
+});
+
+// ── NEW: sfn conversion fuzz ───────────────────────────────────────
+
+describe("fuzz: sfn conversion invariants", () => {
+  const SFN_INPUTS = [
+    '<ref>{{cite web |last=Smith |first=JA |title=Foo |year=2020}}</ref>',
+    '<ref>{{cite web |last=Smith |first=JA |title=Foo |year=2020}}</ref>{{rp|p=15}}',
+    '<ref name="S">{{cite web |last=Smith |first=JA |title=Foo |year=2020}}</ref>\n<ref name="S" />{{rp|p=42}}',
+    '<ref>{{cite web |last=Smith |first=JA |title=Foo |year=2020}}</ref>: 2–4',
+    '<ref>{{cite web |last=Smith |first=JA |title=Foo |year=2020}}</ref>{{rp|p=15}}\n\n== Sources ==\n* already there\n',
+    'Some text without refs.',
+    '',
+    '{{sfn|Smith|2020|p=15}} already exists',
+  ];
+
+  for (const input of SFN_INPUTS) {
+    it(`sfn invariant: ${input.slice(0, 60)}`, () => {
+      const result = convertToSfn(input);
+      expect(result).toBeDefined();
+      expect(typeof result).toBe("string");
+      // Check balanced braces
+      const open = (result.match(/\{\{/g) || []).length;
+      const close = (result.match(/\}\}/g) || []).length;
+      expect(open).toBe(close);
+    });
+  }
+});
+
+// ── NEW: cleanupCitationBody fuzz invariants ───────────────────────
+
+describe("fuzz: cleanupCitationBody invariants", () => {
+  const BODIES = [
+    "|a=b|c=d|e=f",
+    "| a = b | c = d",
+    "|title=Test|doi=10.1000/test",
+    "| a = 1 || b = 2",
+    "| a = 1 ||| b = 2",
+    "| url = http://example.com | access-date = 2024-01-15",
+    "| url = https://example.com | archive-url = https://archive.is/abc",
+  ];
+
+  for (const body of BODIES) {
+    it(`cleanupBody invariant: ${body.slice(0, 60)}`, () => {
+      const result = cleanupCitationBody(body);
+      expect(result).toBeDefined();
+      expect(typeof result).toBe("string");
+      expect(result).not.toContain("||");
+    });
+  }
+});
+
+// ── NEW: dates module fuzz ──────────────────────────────────────────
+
+describe("fuzz: dates module invariants", () => {
+  const DATE_INPUTS = [
+    "2024-01-15",
+    "15 January 2024",
+    "January 15, 2024",
+    "2024-01",
+    "January 2024",
+    "2024",
+    "",
+    "invalid-date",
+    "1 January 2024",
+    "01 January 2024",
+    "15 Jan 2024",
+    "15 January",
+    "c. 1900",
+    "n.d.",
+    "2024/01/15",
+    "01-15-2024",
+  ];
+
+  for (const date of DATE_INPUTS) {
+    it(`date normalizes consistently: ${date.slice(0, 40)}`, () => {
+      const result = normalizeDate(date);
+      if (result) {
+        expect(typeof result).toBe("string");
+        expect(result.length).toBeGreaterThan(0);
       }
     });
   }
