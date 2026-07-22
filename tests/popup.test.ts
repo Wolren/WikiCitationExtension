@@ -4,8 +4,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 const mockStorage: Record<string, unknown> = {};
 const mockGetMessage = vi.fn((key: string) => {
   const msgs: Record<string, string> = {
-    appName: "WikiCitationFixer",
-    appSubtitle: "Self-contained citation fixing",
+    appName: "WikiCitationExtension",
+    appSubtitle: "Citation fixing for English Wikipedia",
     btnResetDefaults: "Reset defaults",
     sectionModules: "Modules",
     moduleExpand: "Expand",
@@ -67,6 +67,7 @@ const mockBrowser = {
     },
   },
   i18n: { getMessage: mockGetMessage },
+  runtime: { sendMessage: vi.fn(async () => ({ variant: "wikipedia" })) },
 } as any;
 vi.stubGlobal("browser", mockBrowser);
 
@@ -86,13 +87,13 @@ Object.defineProperty(globalThis, "crypto", { value: mockCrypto });
 
 import "../src/popup";
 
-// Helper to await pending microtasks
-function tick(): Promise<void> {
-  return new Promise(r => setTimeout(r, 0));
+// Helper to await pending microtasks and debounced saves
+function tick(delay = 0): Promise<void> {
+  return new Promise(r => setTimeout(r, delay));
 }
 
 beforeEach(() => {
-  mockStorage["wikifix_settings"] = {
+  mockStorage["wikifix_settings_wikipedia"] = {
     modules: "expand,cleanup,dates,ids,archive,dedup",
     force: false,
     ref_names: false,
@@ -114,8 +115,8 @@ beforeEach(() => {
 
   document.body.innerHTML = `
     <div class="container">
-      <h2 data-i18n="appName">WikiCitationFixer</h2>
-      <p class="subtitle" data-i18n="appSubtitle">Subtitle</p>
+      <h2 data-i18n="appName">WikiCitationExtension</h2>
+      <p class="subtitle"><span data-i18n="appSubtitle">Citation fixing for English Wikipedia</span></p>
       <details class="section" open>
         <summary data-i18n="sectionModules">Modules</summary>
         <div class="module-list">
@@ -166,13 +167,13 @@ describe("popup initialization", () => {
     await tick();
 
     const title = document.querySelector("h2");
-    expect(title!.textContent).toBe("WikiCitationFixer");
+    expect(title!.textContent).toBe("WikiCitationExtension");
     const subtitle = document.querySelector(".subtitle");
-    expect(subtitle!.textContent).toBe("Self-contained citation fixing");
+    expect(subtitle!.textContent).toBe("Citation fixing for English Wikipedia");
   });
 
   it("loads settings and populates checkboxes", async () => {
-    mockStorage["wikifix_settings"] = {
+    mockStorage["wikifix_settings_wikipedia"] = {
       modules: "expand,cleanup",
       force: false,
       ref_names: false,
@@ -195,7 +196,7 @@ describe("popup initialization", () => {
   });
 
   it("uses defaults when no saved settings", async () => {
-    delete mockStorage["wikifix_settings"];
+    delete mockStorage["wikifix_settings_wikipedia"];
 
     document.dispatchEvent(new Event("DOMContentLoaded"));
     await tick();
@@ -215,11 +216,11 @@ describe("popup saving", () => {
     const cb = document.querySelector('[data-module="authors"]') as HTMLInputElement;
     cb.checked = true;
     cb.dispatchEvent(new Event("change"));
-    await tick();
+    await tick(350);
 
     expect(mockBrowser.storage.local.set).toHaveBeenCalled();
     const saved = (mockBrowser.storage.local.set as any).mock.calls.at(-1)[0];
-    expect(saved.wikifix_settings.modules).toContain("authors");
+    expect(saved.wikifix_settings_wikipedia.modules).toContain("authors");
   });
 
   it("encrypts API keys before saving", async () => {
@@ -232,7 +233,7 @@ describe("popup saving", () => {
     const ncbiInput = document.getElementById("ncbi_api_key") as HTMLInputElement;
     ncbiInput.value = "my-secret-key";
     ncbiInput.dispatchEvent(new Event("input"));
-    await tick();
+    await tick(350);
 
     expect(mockCrypto.subtle.encrypt).toHaveBeenCalled();
   });
@@ -240,7 +241,7 @@ describe("popup saving", () => {
 
 describe("popup reset", () => {
   it("resets to defaults on reset button click", async () => {
-    mockStorage["wikifix_settings"] = {
+    mockStorage["wikifix_settings_wikipedia"] = {
       modules: "authors,sfn",
       force: true,
       ref_names: true,
@@ -252,12 +253,12 @@ describe("popup reset", () => {
     mockBrowser.storage.local.set.mockClear();
 
     document.getElementById("resetBtn")!.click();
-    await tick();
+    await tick(350);
 
     const lastCall = (mockBrowser.storage.local.set as any).mock.calls.at(-1)?.[0];
-    expect(lastCall.wikifix_settings.force).toBe(false);
-    expect(lastCall.wikifix_settings.spacing_style).toBe("");
-    expect(lastCall.wikifix_settings.modules).toBe("expand,cleanup,dates,ids,archive,dedup");
+    expect(lastCall.wikifix_settings_wikipedia.force).toBe(false);
+    expect(lastCall.wikifix_settings_wikipedia.spacing_style).toBe("");
+    expect(lastCall.wikifix_settings_wikipedia.modules).toBe("expand,cleanup,dates,ids,archive,dedup");
   });
 
   it("restores default spacing after reset", async () => {

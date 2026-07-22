@@ -7,7 +7,7 @@ const mockGetMessage = vi.fn((k: string) => {
     btnOpenEditor: "Open editor",
     statsChanged: "$1 citation changed",
     statsChangedPlural: "$1 citations changed",
-    panelTitle: "WikiCitationFixer — Citation diff panel",
+    panelTitle: "WikiCitationExtension — Citation diff panel",
     btnCycleDock: "Cycle dock corner",
     btnMinimize: "Minimize",
     btnClose: "Close",
@@ -171,7 +171,7 @@ describe("buildPanel", () => {
 
   it("panel persists across showDiffPanel calls with same state", () => {
     showDiffPanel("text", "diff", "Test_Page");
-    const panel = document.getElementById("wikifix-panel")!;
+    const _panel = document.getElementById("wikifix-panel")!;
     showDiffPanel("more text", "diff2", "Test_Page");
     const panel2 = document.getElementById("wikifix-panel")!;
     expect(panel2).not.toBeNull();

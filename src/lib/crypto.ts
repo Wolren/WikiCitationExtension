@@ -1,8 +1,7 @@
 const CRYPTO_KEY_STORAGE = "wikifix_crypto_key";
 const ALGORITHM = "AES-GCM";
 const KEY_LENGTH = 256;
-
-type BufferSource = ArrayBufferView | ArrayBuffer;
+const ENCRYPTED_PREFIX = "enc1:";
 
 async function getOrCreateKey(): Promise<CryptoKey> {
   try {
@@ -20,6 +19,10 @@ async function getOrCreateKey(): Promise<CryptoKey> {
   return key;
 }
 
+export function isEncrypted(value: string): boolean {
+  return value.startsWith(ENCRYPTED_PREFIX);
+}
+
 export async function encrypt(text: string): Promise<string> {
   const key = await getOrCreateKey();
   const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -28,16 +31,18 @@ export async function encrypt(text: string): Promise<string> {
   const combined = new Uint8Array(iv.length + encrypted.byteLength);
   combined.set(iv);
   combined.set(new Uint8Array(encrypted), iv.length);
-  return uint8ToHex(combined);
+  return ENCRYPTED_PREFIX + uint8ToHex(combined);
 }
 
-export async function decrypt(hex: string): Promise<string | null> {
+export async function decrypt(value: string): Promise<string | null> {
   try {
+    if (!isEncrypted(value)) return null;
+    const hex = value.slice(ENCRYPTED_PREFIX.length);
     const key = await getOrCreateKey();
     const combined = hexToUint8(hex);
     const iv = combined.slice(0, 12);
     const data = combined.slice(12);
-    const decrypted = await crypto.subtle.decrypt({ name: ALGORITHM, iv }, key, data as any);
+    const decrypted = await crypto.subtle.decrypt({ name: ALGORITHM, iv }, key, data);
     return new TextDecoder().decode(decrypted);
   } catch {
     return null;

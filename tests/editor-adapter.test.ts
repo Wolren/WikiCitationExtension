@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { findEditor, waitForEditor, isVisualEditorActive, isVeSourceMode, findVeSourceTab, findVeSourceEditor } from "../src/editor-adapter";
+import { findEditor, waitForEditor, isVisualEditorActive, isVeSourceMode, findVeSourceEditor } from "../src/editor-adapter";
 
 function mockTextarea(id: string, width = 500, height = 300): HTMLTextAreaElement {
   const ta = document.createElement("textarea");

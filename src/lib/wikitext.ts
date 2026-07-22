@@ -139,25 +139,6 @@ export function detectCitationType(
   return {};
 }
 
-function extractParamBracketAware(body: string, param: string): string | null {
-  const re = new RegExp(`\\|\\s*${escapeRe(param)}\\s*=\\s*`, "i");
-  const m = re.exec(body);
-  if (!m) return null;
-  let val = "";
-  let depth = 0;
-  for (let i = m.index + m[0].length; i < body.length; i++) {
-    const ch = body[i];
-    const next = body[i + 1] || "";
-    if (ch === "{" && next === "{") { depth++; val += "{{"; i++; continue; }
-    if (ch === "}" && next === "}") { depth--; val += "}}"; i++; continue; }
-    if (ch === "[" && next === "[") { depth++; val += "[["; i++; continue; }
-    if (ch === "]" && next === "]") { depth--; val += "]]"; i++; continue; }
-    if (ch === "|" && depth === 0) break;
-    val += ch;
-  }
-  return val.trim() || null;
-}
-
 export function generateRefName(body: string): string | null {
   const lastM = body.match(/\|\s*last\s*=\s*([^|]+)/i);
   const firstM = body.match(/\|\s*first\s*=\s*([^|]+)/i);

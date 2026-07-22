@@ -1,24 +1,20 @@
 {
   "manifest_version": 3,
   "default_locale": "en",
-  "name": "WikiCitationFixer",
+  "name": "WikiCitationExtension",
   "version": "1.0.0",
-  "description": "Fix Wikipedia citations — expand, clean up, enrich identifiers — fully self-contained. Works on any MediaWiki wiki (Wikipedia, Fandom, Miraheze, custom).",
+  "description": "Fix English Wikipedia citations — expand metadata, clean up parameters, enrich identifiers. English Wikipedia only.",
   "permissions": ["storage"],
   "host_permissions": [
-    "https://*.wikipedia.org/*",
-    "https://*.fandom.com/*",
-    "https://*.wikia.org/*",
-    "https://*.miraheze.org/*",
-    "https://*/*"
+    "https://en.wikipedia.org/*"
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "WikiCitationFixer"
+    "default_title": "WikiCitationExtension"
   },
   "content_scripts": [
     {
-      "matches": ["https://*/*", "http://*/*"],
+      "matches": ["https://en.wikipedia.org/*"],
       "js": ["browser-polyfill.js", "content.js"],
       "run_at": "document_idle"
     }
@@ -27,9 +23,9 @@
     "service_worker": "background.js"
   },
   "icons": {
-    "16": "icon.svg",
-    "48": "icon.svg",
-    "128": "icon.svg"
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'none'"

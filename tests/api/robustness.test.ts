@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { processWikitext } from "../src/content";
-import { findCitations } from "../src/lib/wikitext";
-import { resetApiProbeCache } from "../src/wiki-detector";
-import type { StorageSettings } from "../src/lib/types";
+import { processWikitext } from "../../src/content";
+import { findCitations } from "../../src/lib/wikitext";
+import { resetApiProbeCache } from "../../src/wiki-detector";
+import type { StorageSettings } from "../../src/lib/types";
 
 beforeAll(() => {
   delete (globalThis as any).location;
@@ -287,7 +287,7 @@ const FIXTURE_REF_NAME: FixtureDef = {
   checks: ["Smith2024"],
 };
 
-const FIXTURE_REF_NAME_PRESERVED: FixtureDef = {
+const _FIXTURE_REF_NAME_PRESERVED: FixtureDef = {
   name: "existing ref name preserved",
   input: '<ref name="Smith">{{cite journal |last=Smith |year=2024 |title=Test |doi=10.1000/ct6}}</ref>',
   settings: { ref_names: true, auto_update: true } as Partial<StorageSettings>,

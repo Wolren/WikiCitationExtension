@@ -70,3 +70,71 @@ select {
   border: 1px solid #666; border-radius: 2px; font-size: 13px; cursor: pointer; margin-top: 8px;
 }
 .btn-reset:hover { background: #555; color: #e0e0e0; }
+
+.wiki-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  color: #999;
+  background: #2d2d2d;
+  padding: 1px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+
+.depends-disabled {
+  opacity: 0.45;
+  user-select: none;
+}
+.depends-disabled select,
+.depends-disabled input,
+.depends-disabled label {
+  cursor: not-allowed;
+}
+
+#depends-warning {
+  background: #3a2a1a;
+  border: 1px solid #b8860b;
+  color: #e8c547;
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  animation: depends-fadein 200ms ease;
+  cursor: pointer;
+}
+#depends-warning:hover { border-color: #d4a017; }
+#depends-warning::before {
+  content: "⚠";
+  font-size: 14px;
+  flex-shrink: 0;
+}
+#depends-warning .dismiss {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #b8860b;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+}
+#depends-warning .dismiss:hover { color: #e8c547; }
+@keyframes depends-fadein {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes depends-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(184, 134, 11, 0); }
+  50% { box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.4); }
+}
+.depends-pulse {
+  animation: depends-pulse 800ms ease 2;
+  border-radius: 2px;
+}

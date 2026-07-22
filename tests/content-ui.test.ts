@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Stub browser API
 const mockGetMessage = vi.fn((k: string) => {
@@ -15,7 +15,7 @@ const mockGetMessage = vi.fn((k: string) => {
     statsArchive: "Archive",
     statsSorted: "Sorted",
     statsRefNames: "Ref names",
-    panelTitle: "WikiCitationFixer — Citation diff panel",
+    panelTitle: "WikiCitationExtension — Citation diff panel",
     btnCycleDock: "Cycle dock corner",
     btnMinimize: "Minimize",
     btnClose: "Close",
@@ -290,7 +290,10 @@ describe("getSettings", () => {
     expect((settings as any).serverUrl).toBeUndefined();
     // Should have saved cleaned version
     expect(mockBrowser.storage.local.set).toHaveBeenCalled();
-    const saved = mockBrowser.storage.local.set.mock.calls[0][0].wikifix_settings;
+    // Saved under generic variant key since jsdom's location.hostname is empty
+    const setCall = mockBrowser.storage.local.set.mock.calls[0][0];
+    const saved = setCall.wikifix_settings_generic || setCall.wikifix_settings;
+    expect(saved).toBeDefined();
     expect(saved.serverUrl).toBeUndefined();
   });
 

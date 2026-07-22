@@ -9,7 +9,7 @@ interface OpenLibraryResult { title?: string; publishers?: string[]; }
 interface SemanticScholarResult { externalIds?: { CorpusId?: string }; citationCount?: number; }
 interface EuropePMCResult { title?: string; journalTitle?: string; }
 interface WaybackResponse { archived_snapshots?: { closest?: { url?: string; timestamp?: string; status?: string } } }
-interface DataCiteResult { id?: string; doi?: string; titles?: { title?: string }[]; publisher?: string; publicationYear?: number; dates?: { date?: string; dateType?: string }[]; creators?: { givenName?: string; familyName?: string; name?: string }[]; language?: string; }
+export interface DataCiteResult { id?: string; doi?: string; titles?: { title?: string }[]; publisher?: string; publicationYear?: number; dates?: { date?: string; dateType?: string }[]; creators?: { givenName?: string; familyName?: string; name?: string }[]; language?: string; }
 interface UnpaywallResult { doi?: string; is_oa?: boolean; best_oa_location?: { url?: string; host_type?: string; }; }
 
 let crossrefEmail = "";

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { detectWiki, isEditPage, getPageTitle } from "../src/wiki-detector";
 
 function setLocation(overrides: Partial<Location>): void {

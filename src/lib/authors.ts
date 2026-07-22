@@ -187,12 +187,13 @@ export function vauthorsToLastfirst(
   const count = limited ? maxAuthors! : authors.length;
   for (let i = 0; i < count; i++) {
     const suffix = i === 0 ? "" : String(i + 1);
-    let [last, first] = authors[i];
+    const [last, first] = authors[i];
+    let firstVal = first;
     if (fullNames) {
       const matched = fullNames.find(f => normalizeName(f[0]) === normalizeName(last));
-      if (matched && matched[1].length > first.length) first = matched[1];
+      if (matched && matched[1].length > firstVal.length) firstVal = matched[1];
     }
-    result += `|last${suffix}=${last.replace(/\.$/, "")} |first${suffix}=${first.replace(/\.+$/, "")}`;
+    result += `|last${suffix}=${last.replace(/\.$/, "")} |first${suffix}=${firstVal.replace(/\.+$/, "")}`;
   }
   if (limited) result += " |display-authors=etal";
   return result;
@@ -267,7 +268,7 @@ export function lastfirstToVauthors(body: string, maxAuthors?: number, skipOrgAu
   const limited = maxAuthors && maxAuthors > 0 && toConvert.length > maxAuthors;
   const used = limited ? toConvert.slice(0, maxAuthors!) : toConvert;
   const vauthorsStr = used.map(p => {
-    let last = p.last.replace(/\.+$/, "").replace(/\b([A-Z])\s+(?=[A-Z](?:,\s*|$))/g, "$1").trim();
+    const last = p.last.replace(/\.+$/, "").replace(/\b([A-Z])\s+(?=[A-Z](?:,\s*|$))/g, "$1").trim();
     const init = collapseInitials(p.first);
     return init ? `${last} ${init}` : last;
   }).join(", ");

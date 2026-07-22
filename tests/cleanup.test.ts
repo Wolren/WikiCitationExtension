@@ -373,7 +373,7 @@ describe("cleanupCitation - alias normalization", () => {
   });
 
   it("normalizes number to issue for cite magazine", () => {
-    const { params, changes } = cleanupCitation({ number: "7", title: "Test", magazine: "M" }, { templateType: "cite magazine" });
+    const { params } = cleanupCitation({ number: "7", title: "Test", magazine: "M" }, { templateType: "cite magazine" });
     expect(params.issue).toBe("7");
     expect(params.number).toBeUndefined();
   });
@@ -477,7 +477,7 @@ describe("cleanupCitation - alias normalization", () => {
   });
 
   it("does not affect params with no aliases", () => {
-    const { params, changes } = cleanupCitation({ title: "Clean", date: "2024", doi: "10.1000/x" });
+    const { changes } = cleanupCitation({ title: "Clean", date: "2024", doi: "10.1000/x" });
     expect(changes).not.toContain(expect.stringMatching(/^alias-/));
   });
 

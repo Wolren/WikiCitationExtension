@@ -29,8 +29,10 @@ function parseHtmlSup(content: string): Record<string, string> {
   const bare = stripped.match(/^\s*(\d[\d\-\u2013,]*)\s*$/);
   if (bare) {
     const val = bare[1];
-    if (/[‑\-\u2013,]/.test(val)) return { pages: val };
-    return { page: val };
+    const result: Record<string, string> = {};
+    if (/[\u2013\-,]/.test(val)) result.pages = val;
+    else result.page = val;
+    return result;
   }
   return {};
 }
@@ -66,7 +68,8 @@ function extractAllRp(text: string, start: number): { params: Record<string, str
     const colonMatch = snapshot.match(/^:\s*(\d[\d\-\u2013,]*)/);
     if (colonMatch) {
       const val = colonMatch[1];
-      const params = /[‑\-\u2013,]/.test(val) ? { pages: val } : { page: val };
+      const params: Record<string, string> = {};
+      if (/[\u2013\-,]/.test(val)) params.pages = val; else params.page = val;
       results.push({ params, end: pos + colonMatch[0].length });
       pos += colonMatch[0].length;
       continue;
@@ -101,9 +104,8 @@ function parseRpParams(rp: string): Record<string, string> {
 
 function parseSfnParams(cite: string): Record<string, string> {
   const params: Record<string, string> = {};
-  let i = 0;
   if (!cite.startsWith("{{")) return params;
-  i = 2;
+  let i = 2;
   while (i < cite.length && /\s/.test(cite[i])) i++;
   while (i < cite.length && /[\w-]/.test(cite[i])) i++;
   while (i < cite.length && /\s/.test(cite[i])) i++;

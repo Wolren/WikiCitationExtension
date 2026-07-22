@@ -6,26 +6,29 @@
   "scripts": {
     "build": "node build.mjs",
     "watch": "node build.mjs --watch",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:api": "vitest run -c vitest.api.config.ts",
+    "test:all": "vitest run -c vitest.all.config.ts",
     "test:watch": "vitest",
     "lint": "eslint src/ tests/",
-    "check": "npm run build && npm test",
-    "ci": "npm run lint && npm run build && npm test"
+    "check": "npm run lint && npm run typecheck && npm run build && npm test",
+    "ci": "npm run lint && npm run typecheck && npm run build && npm test"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "adm-zip": "^0.6.0",
-    "archiver": "^8.0.0",
-    "esbuild": "^0.28.1",
-    "eslint": "^10.7.0",
-    "jsdom": "^29.1.1",
-    "jszip": "^3.10.1",
-    "tsx": "^4.23.1",
-    "typescript": "^6.0.3",
-    "typescript-eslint": "^8.64.0",
-    "vitest": "^4.1.10"
+    "@eslint/js": "10.0.1",
+    "adm-zip": "0.6.0",
+    "archiver": "8.0.0",
+    "esbuild": "0.28.1",
+    "eslint": "10.7.0",
+    "jsdom": "29.1.1",
+    "jszip": "3.10.1",
+    "tsx": "4.23.1",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.65.0",
+    "vitest": "4.1.10"
   },
   "dependencies": {
-    "isbn3": "^2.0.9"
+    "isbn3": "2.0.9"
   }
 }

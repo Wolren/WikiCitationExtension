@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from "vitest";
-import { processWikitext, escapeRe, buildPreservedBody } from "../src/content";
+import { describe, it, expect, beforeAll, afterEach } from "vitest";
+import { processWikitext } from "../src/content";
 import { findCitations, parseParams } from "../src/lib/wikitext";
 import { cleanupCitation } from "../src/lib/cleanup";
 import { resetApiProbeCache } from "../src/wiki-detector";
@@ -67,7 +67,7 @@ function hasValidTemplateFormat(text: string): boolean {
   return true;
 }
 
-function countCitations(text: string): number {
+function _countCitations(text: string): number {
   return findCitations(text).length;
 }
 
@@ -206,7 +206,7 @@ function generateRandomCitation(rng: SeededRng): string {
         key = `x${rng.int(100, 999)}`;
         val = rng.pick(VALUE_TEMPLATES);
         break;
-      case "bracketValue":
+      case "bracketValue": {
         key = rng.pick(KNOWN_PARAMS);
         const embed = rng.pick([
           "{{lang|de|Foo}}",
@@ -217,6 +217,7 @@ function generateRandomCitation(rng: SeededRng): string {
         ]);
         val = `${rng.pick(["prefix ", "text before ", ""])}${embed}${rng.pick([" suffix", " more text", ""])}`;
         break;
+      }
     }
 
     const spacing = rng.int(1, 3);
@@ -273,7 +274,7 @@ function generateRandomWikitext(rng: SeededRng): string {
 
 describe("fuzz: random citation generation", () => {
   const INVOCATIONS = FUZZ_COUNT;
-  let errors: { seed: number; config: string; input: string; error: string }[] = [];
+  const errors: { seed: number; config: string; input: string; error: string }[] = [];
 
   afterEach(() => {
     if (errors.length > 10) {
@@ -294,7 +295,7 @@ describe("fuzz: random citation generation", () => {
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           errors.push({ seed: seed, config: config.name, input, error: msg });
-          throw new Error(`Crash: seed=${seed} config=${config.name}: ${msg}`);
+          throw new Error(`Crash: seed=${seed} config=${config.name}: ${msg}`, { cause: e });
         }
         expect(balancedBraces(result.text),
           `seed=${seed} config=${config.name}: unbalanced braces`).toBe(true);
@@ -370,7 +371,7 @@ describe("fuzz: edge case patterns", () => {
           result = await processWikitext(edge.input, config.settings);
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
-          throw new Error(`Crash: edge=${edge.name} config=${config.name}: ${msg}`);
+          throw new Error(`Crash: edge=${edge.name} config=${config.name}: ${msg}`, { cause: e });
         }
         expect(balancedBraces(result.text), `${edge.name} ${config.name}: unbalanced braces`).toBe(true);
         if (!config.settings.ref_names) {
@@ -535,7 +536,7 @@ describe("fuzz: error recovery under stress", () => {
   it("handles mixed API success/failure in expand batch", async () => {
     let callCount = 0;
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = async (url: string | URL | Request, init?: RequestInit) => {
+    globalThis.fetch = async (_url: string | URL | Request, _init?: RequestInit) => {
       callCount++;
       // Every 3rd call fails
       if (callCount % 3 === 0) throw new Error("Network error");

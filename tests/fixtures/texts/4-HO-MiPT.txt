@@ -1,0 +1,210 @@
+{{Short description|Psychedelic drug}}
+{{Redirect-distinguish|Miprocin|Mupirocin}}
+{{cs1 config|name-list-style=vanc|display-authors=6}}
+{{Use dmy dates|date=November 2020}}
+{{Infobox drug
+| Verifiedfields = verified
+| Watchedfields = verified
+| verifiedrevid = 477222074
+| image = 4-HO-MiPT.svg
+| image_class = skin-invert-image
+| width = 200px
+| image2 = 4-HO-MiPT 3D.png
+| image_class2 = bg-transparent
+| width2 = 225px
+
+<!-- Clinical data -->
+| tradename = 
+| routes_of_administration = [[Oral administration|Oral]]<ref name="TiHKAL" />
+| class = [[Binding selectivity|Non-selective]] [[serotonin receptor agonist]]; [[Serotonin]] [[5-HT2A receptor|5-HT<sub>2A</sub> receptor]] [[agonist]]; [[Serotonergic psychedelic]]; [[Hallucinogen]]
+| ATC_prefix = None
+| ATC_suffix =
+
+<!-- Legal status -->
+| legal_BR = F2
+| legal_BR_comment = <ref>{{cite web | vauthors = Anvisa | title = RDC Nº 804 - Listas de Substâncias Entorpecentes, Psicotrópicas, Precursoras e Outras sob Controle Especial | date = 2023-07-24 | trans-title = Collegiate Board Resolution No. 804 - Lists of Narcotic, Psychotropic, Precursor, and Other Substances under Special Control | url = https://www.in.gov.br/en/web/dou/-/resolucao-rdc-n-804-de-24-de-julho-de-2023-498447451 | url-status = live | archive-url = https://web.archive.org/web/20230827163149/https://www.in.gov.br/en/web/dou/-/resolucao-rdc-n-804-de-24-de-julho-de-2023-498447451 | archive-date = 2023-08-27 | access-date = 2023-08-27 | publisher = [[Diário Oficial da União]] | language = pt-BR | publication-date = 2023-07-25 }}</ref>
+| legal_DE = NpSG
+| legal_US = Unscheduled
+| legal_UK = Class A
+
+<!-- Pharmacokinetic data -->
+| bioavailability = 
+| protein_bound = 
+| metabolism = 
+| onset = 10–20 minutes<ref name="TiHKAL" /><ref name="Bauer_2020" />
+| elimination_half-life = 
+| duration_of_action = 4–6 hours<ref name="TiHKAL" />
+| excretion =
+
+<!-- Identifiers -->
+| CAS_number_Ref = {{cascite|correct|CAS}}
+| CAS_number = 77872-43-6
+| PubChem = 10082683
+| ChemSpiderID_Ref = {{chemspidercite|correct|chemspider}}
+| ChemSpiderID = 8258221
+| ChEMBL_Ref = {{ebicite|correct|EBI}}
+| ChEMBL = 171419
+| UNII_Ref = {{fdacite|correct|FDA}}
+| UNII = 4GAJ9OJ8YZ
+| synonyms = 4-OH-MiPT; 4-Hydroxy-''N''-methyl-''N''-isopropyltryptamine; Miprocin
+
+<!-- Chemical data -->
+| IUPAC_name = 3-{2-[methyl(propan-2-yl)amino]ethyl}-1''H''-indol-4-ol
+| C=14 | H=20 | N=2 | O=1
+| SMILES = CN(C(C)C)CCC2=CNC1=CC=CC(O)=C12
+| StdInChI_Ref = {{stdinchicite|correct|chemspider}}
+| StdInChI = 1S/C14H20N2O/c1-10(2)16(3)8-7-11-9-15-12-5-4-6-13(17)14(11)12/h4-6,9-10,15,17H,7-8H2,1-3H3
+| StdInChIKey_Ref = {{stdinchicite|correct|chemspider}}
+| StdInChIKey = RXKGHZCQFXXWFQ-UHFFFAOYSA-N
+
+<!-- Physical data -->
+| melting_point = 123
+| melting_high = 125
+}}
+
+'''4-HO-MiPT''', also known as '''4-hydroxy-''N''-methyl-''N''-isopropyltryptamine''' or as '''miprocin''', is a [[psychedelic drug]] of the [[substituted tryptamine|tryptamine]] and [[substituted 4-hydroxytryptamine|4-hydroxytryptamine]] families related to [[psilocin]] (4-HO-DMT).<ref name="TiHKAL">{{CiteTiHKAL }} http://www.erowid.org/library/books_online/tihkal/tihkal22.shtml</ref><ref name="Bauer_2020">{{cite web | vauthors = Bauer BE | title = 4-HO-MiPT | date = 6 January 2020 | website = Psychedelic Science Review | url = https://psychedelicreview.com/compound/4-ho-mipt/ | access-date = 9 October 2025 }}</ref><ref name="Repke_1985" /> It appears to be similar to psilocin in terms of [[onset of action|onset]], [[duration of action|duration]], and effects.<ref name="TiHKAL" /><ref name="Bauer_2020" /><ref name="Repke_1985">{{cite journal | vauthors = Repke DB, Grotjahn DB, Shulgin AT | title = Psychotomimetic N-methyl-N-isopropyltryptamines. Effects of variation of aromatic oxygen substituents | journal = Journal of Medicinal Chemistry | volume = 28 | issue = 7 | pages = 892–896 | date = July 1985 | pmid = 4009612 | doi = 10.1021/jm00145a007 }}</ref><ref name="Glatfelter_2026">{{cite journal |vauthors=Glatfelter GC, Schalk SS, Walther D, Maitland AD, Gonzalez NR, Partilla JS, et al |date=May 2026 |title=Serotonin Transporter Blockade Reduces the Psychedelic-Like Effects of 4-Methoxy- N -methyl- N -isopropyltryptamine and Related Analogs |url=https://pubs.acs.org/doi/full/10.1021/acschemneuro.6c00083 |journal=ACS Chemical Neuroscience |doi=10.1021/acschemneuro.6c00083 |issn=1948-7193 |pmid=42200433|doi-access=free }}</ref> The drug is taken [[oral administration|orally]].<ref name="TiHKAL" /><ref name="Bauer_2020" /><ref name="Repke_1985" />
+
+It acts as a [[binding selectivity|non-selective]] [[serotonin receptor agonist]], including of the [[serotonin]] [[5-HT2A receptor|5-HT<sub>2A</sub> receptor]] among others.<ref name="Bauer_2020" /><ref name="Klein_2021" /> The drug is closely related [[chemical structure|structurally]] to [[MiPT]], [[4-HO-DiPT]], and [[psilocin]] (4-HO-DMT).<ref name="TiHKAL" />
+
+4-HO-MiPT was first described in the literature by [[David Repke]] and colleagues in 1981.<ref name="Chadeayne_2019" /><ref name="Chadeayne_2020" /><ref name="Bauer_2020" /><ref name="Repke_1981" /> Its effects in humans were subsequently described by Repke and [[Alexander Shulgin]] in 1985<ref name="Repke_1985" /> and 1997.<ref name="TiHKAL" /><ref name="Bauer_2020" />
+
+==Use and effects==
+According to [[Alexander Shulgin]] in his book ''[[TiHKAL]]'' (''Tryptamines I Have Known and Loved'') and other publications, 4-HO-MiPT has a dose range of 12 to 25{{nbsp}}mg, an [[onset of action]] of 10 to 20{{nbsp}}minutes, a time to peak of 40 to 45{{nbsp}}minutes, and a [[duration of action|duration]] of 4 to 6{{nbsp}}hours.<ref name="TiHKAL" /><ref name="Bauer_2020" /><ref name="Repke_1985" /><ref name="Halberstadt_2020">{{cite journal | vauthors = Halberstadt AL, Chatha M, Klein AK, Wallach J, Brandt SD | title = Correlation between the potency of hallucinogens in the mouse head-twitch response assay and their behavioral and subjective effects in other species | journal = Neuropharmacology | volume = 167 | date = May 2020 | pmid = 31917152 | pmc = 9191653 | doi = 10.1016/j.neuropharm.2019.107933 | quote = Table 4 Human potency data for selected hallucinogens. [...] | article-number = 107933 }}</ref> It has an estimated typical dose of 18.5{{nbsp}}mg.<ref name="Halberstadt_2020" /> The drug has been described as at least twice as [[potency (pharmacology)|potent]] as [[psilocin]] (4-HO-DMT) at comparable doses, with 20{{nbsp}}mg 4-HO-MiPT being subjectively stronger than 50{{nbsp}}mg psilocin in one individual.<ref name="TiHKAL" /><ref name="Bauer_2020" /> However, in another person, the effects of [[4-AcO-MiPT]] (a [[prodrug]] of 4-HO-MiPT) at a dose of 30{{nbsp}}mg were described as considerably more modest than expected.<ref name="TiHKAL" />
+
+The effects of 4-HO-MiPT have been reported to include [[closed-eye visual]]s, vivid [[mental imagery]], few [[psychedelic visual]]s, wave-form visuals, intense color alterations, multiple images of the same object with intense colored halos, illusory alteration of the size and distance of objects, heightening of [[sense]]s, intensification and enhanced discrimination of sounds, increased sense of bodily processes such as blood flow and muscles, [[synesthesia]] of sound and sight, intense alteration in sense of time and distance, feelings of drifting in and out of the body, flight of ideas, [[philosophy|philosophical]] thinking, [[euphoria]], enhanced [[music]] appreciation, enhanced [[eroticism]], and facilitation of [[love]], [[insight]]s, [[fantasy (psychology)|fantasy]], [[introspection]], and [[discovery (observation)|discovery]].<ref name="TiHKAL" /><ref name="Bauer_2020" /><ref name="Repke_1985" /> Other effects included [[drug intoxication|intoxication]], [[sedation]], [[drunkenness|feeling drunk]], [[mental relaxation|relaxation]], some initial [[anxiety]], easy to difficult verbal [[communication]], easy [[distraction]] and [[annoyance]] by external [[stimulus (psychology)|stimuli]] such as [[light]], [[appetite loss]], and [[insomnia]].<ref name="TiHKAL" /><ref name="Bauer_2020" /><ref name="Repke_1985" /> Physical effects of the drug have been reported to include [[muscle twitching|twitching]], muscle sensations, [[motor incoordination]], slight [[lightheadedness]], mild [[vertigo]], [[jaw clenching]], and body [[tremor]]s.<ref name="TiHKAL" /><ref name="Repke_1985" />
+
+== Interactions ==
+
+{{See also|Psychedelic drug#Interactions|Trip killer#Serotonergic psychedelic antidotes}}
+
+==Pharmacology==
+===Pharmacodynamics===
+{| class="wikitable floatleft" style="font-size:small;"
+|+ {{Nowrap|4-HO-MiPT activities}}
+|-
+! Target !! Affinity (K<sub>i</sub>, nM)
+|-
+| [[5-HT1A receptor|5-HT<sub>1A</sub>]] || 1,626–5,870 (K<sub>i</sub>)<br />2,590 ({{Abbrlink|EC<sub>50</sub>|half-maximal effective concentration}})<br />83% ({{Abbrlink|E<sub>max</sub>|maximal efficacy}})
+|-
+|[[5-HT1B receptor|5-HT<sub>1B</sub>]]
+|>10,000
+|-
+|[[5-HT1D receptor|5-HT<sub>1D</sub>]]
+|1,415
+|-
+|[[5-HT1E receptor|5-HT<sub>1E</sub>]]
+|614
+|-
+| [[5-HT2A receptor|5-HT<sub>2A</sub>]] || 113–695 (K<sub>i</sub>)<br />5.2–306<sup>a</sup> ({{Abbr|EC<sub>50</sub>|half-maximal effective concentration}})<br />74<sup>a</sup>–102% ({{Abbr|E<sub>max</sub>|maximal efficacy}})
+|-
+| [[5-HT2B receptor|5-HT<sub>2B</sub>]] || 66 (K<sub>i</sub>)<br />10.3–14.8 ({{Abbr|EC<sub>50</sub>|half-maximal effective concentration}})<br />49–65% ({{Abbr|E<sub>max</sub>|maximal efficacy}})
+|-
+| [[5-HT2C receptor|5-HT<sub>2C</sub>]] || 750–1,301 (K<sub>i</sub>)<br />166–325 ({{Abbr|EC<sub>50</sub>|half-maximal effective concentration}})<br />68–98%<sup>a</sup> ({{Abbr|E<sub>max</sub>|maximal efficacy}})
+|-
+|[[5-HT3 receptor|5-HT<sub>3</sub>]]
+|>10,000
+|-
+|[[5-HT5A receptor|5-HT<sub>5A</sub>]]
+|>10,000
+|-
+|[[5-HT6 receptor|5-HT<sub>6</sub>]]
+|390
+|-
+|[[5-HT7 receptor|5-HT<sub>7</sub>]]
+|1,038
+|-
+|[[Alpha-2A adrenergic receptor|α<sub>2A</sub><sub>,</sub>]] [[Alpha-2B adrenergic receptor|α<sub>2B</sub>]], [[Alpha-2C adrenergic receptor|α<sub>2C</sub>]]
+|>10,000
+|-
+|[[H1 receptor|H<sub>1</sub>]]
+|1,272
+|-
+|[[Sigma-1 receptor|σ<sub>1</sub>]]
+|>10,000
+|-
+|[[Sigma-2 receptor|σ<sub>2</sub>]]
+|2,765
+|-
+| {{Abbrlink|SERT|Serotonin transporter}} || 248–483 (K<sub>i</sub>)<br />373–423 ({{Abbr|[[IC50|IC<sub>50</sub>]]|half-maximal inhibitory concentration}})
+|-
+|{{Abbrlink|NET|Norepinephrine transporter}}, {{Abbrlink|DAT|Dopamine transporter}}
+|>10,000
+|- class="sortbottom"
+| colspan="2" style="width: 1px; background-color:var(--background-color-notice-subtle,#eaecf0); color:inherit; text-align: center;" | '''Notes:''' The smaller the value, the more avidly the drug interacts with the site. '''Footnotes:''' <sup>a</sup> = Stimulation of {{Abbrlink|IP<sub>1</sub>|inositol phosphate|}} formation. '''Sources:''' <ref name="Glatfelter_2026" /><ref name="Klein_2021">{{cite journal | vauthors = Klein AK, Chatha M, Laskowski LJ, Anderson EI, Brandt SD, Chapman SJ, McCorvy JD, Halberstadt AL | title = Investigation of the Structure-Activity Relationships of Psilocybin Analogues | journal = ACS Pharmacology & Translational Science | volume = 4 | issue = 2 | pages = 533–542 | date = April 2021 | pmid = 33860183 | pmc = 8033608 | doi = 10.1021/acsptsci.0c00176 }}</ref><ref name="Kozell_2023">{{cite journal | vauthors = Kozell LB, Eshleman AJ, Swanson TL, Bloom SH, Wolfrum KM, Schmachtenberg JL, Olson RJ, Janowsky A, Abbas AI | title = Pharmacologic Activity of Substituted Tryptamines at 5-Hydroxytryptamine (5-HT)<sub>2A</sub> Receptor (5-HT<sub>2A</sub>R), 5-HT<sub>2C</sub>R, 5-HT<sub>1A</sub>R, and Serotonin Transporter | journal = The Journal of Pharmacology and Experimental Therapeutics | volume = 385 | issue = 1 | pages = 62–75 | date = April 2023 | pmid = 36669875 | pmc = 10029822 | doi = 10.1124/jpet.122.001454 }}</ref><ref name="Glatfelter_2024">{{Cite journal | vauthors = Glatfelter G, Walther D, Partilla J, Chadeayne AR, Manke DR, Baumann MH | title = Pharmacological profiles and psychedelic-like effects of 4-hydroxy-, 4-acetoxy-, and 4-methoxy-N- methyl- N- isopropyltryptamine | journal = The Journal of Pharmacology and Experimental Therapeutics | volume = 389 | pages = 281 | date = 2024-06-01 | doi = 10.1124/jpet.281.923160 | url = https://jpet.aspetjournals.org/article/S0022-3565(24)17509-X/abstract | language = English | issn = 0022-3565 | url-access = subscription }}</ref>
+|}
+
+4-HO-MiPT acts as a [[binding selectivity|non-selective]] [[serotonin receptor agonist]], including of the [[serotonin]] [[5-HT2A receptor|5-HT<sub>2A</sub>]], [[5-HT2B receptor|5-HT<sub>2B</sub>]], and [[5-HT2C receptor|5-HT<sub>2C</sub> receptor]]s.<ref name="Bauer_2020" /><ref name="Klein_2021" /><ref name="Kozell_2023" /><ref name="Glatfelter_2024" /> It shows the highest [[potency (pharmacology)|potency]] and [[intrinsic activity|efficacy]] as an agonist of the 5-HT<sub>2A</sub> receptor, moderate potency as a [[partial agonist]] of the 5-HT<sub>2B</sub> receptor, and low potency with high-efficacy as a partial agonist of the 5-HT<sub>2C</sub> receptor.<ref name="Klein_2021" /><ref name="Glatfelter_2024" /> Additionally, the drug has been found to act as a moderate-potency [[serotonin transporter]] (SERT) [[transporter blocker|blocker]] or [[serotonin reuptake inhibitor]].<ref name="Kozell_2023" /> Its low affinity and potency at the [[5-HT1A receptor|5-HT<sub>1A</sub> receptor]] suggest minimal contribution to this drug's effects.<ref name="Glatfelter_2024" /> 4-HO-MiPT exhibits approximately 7-fold [[binding selectivity|selectivity]] for activation of the serotonin 5-HT<sub>2A</sub> receptor over the serotonin 5-HT<sub>2C</sub> receptor, and 4-fold preference relative to SERT inhibition.<ref name="Klein_2021" /><ref name="Kozell_2023" /><ref name="Glatfelter_2024" /> Affinities towards [[Receptor (biochemistry)|receptors]] outside of the [[serotonin receptor]] family are low.<ref name="Glatfelter_2026" />
+
+The drug induces the [[head-twitch response]], a behavioral proxy of psychedelic effects, in rodents.<ref name="Klein_2021" /><ref name="Halberstadt_2020" /> Its potency for inducing the head-twitch response in mice is about 4- or 5-fold lower than that of [[psilocin]].<ref name="Klein_2021" />
+
+==== Pharmacokinetics ====
+As of February 2026, no studies have characterized the [[pharmacokinetics]]  of 4‑HO‑MiPT.<ref name="Klein_2021" />
+
+==Chemistry==
+4-HO-MiPT, also known as 4-hydroxy-''N''-methyl-''N''-isopropyltryptamine, is a [[synthetic compound|synthetic]] [[chemical derivative|derivative]] of the [[substituted tryptamine]] and [[substituted 4-hydroxytryptamine|4-hydroxytryptamine]] families.<ref name="TiHKAL" /> It is the 4-[[hydroxy group|hydroxy]] [[structural analog|analogue]] of [[MiPT|''N''-methyl-''N''-isopropyltryptamine]] (MiPT) and the ''N''-[[isopropyl group|isopropyl]] [[homologous series|homologue]] of psilocin (4-HO-DMT).<ref name="TiHKAL" />
+
+===Properties===
+4-HO-MiPT appears to be a relatively [[chemical instability|unstable]] compound, discoloring quickly if not kept in an inert atmosphere and in a freezer.<ref name="TiHKAL" /><ref name="Bauer_2020" /> The drug and its [[prodrug]] [[structural analog|analogue]] [[4-AcO-MiPT]] have been used as the [[free base]], [[hydrochloride]] [[salt (chemistry)|salt]], and [[fumarate]] salt.<ref name="TiHKAL" /><ref name="Chadeayne_2019" /><ref name="Chadeayne_2020" />
+
+===Crystal structure===
+In August 2019, Chadeayne et al. solved the [[crystal structure]] of 4-HO-MiPT fumarate.<ref name="Bauer_2020" /><ref name="Chadeayne_2019" /> Its systematic name is [2-(4-hydroxy-1''H''-indol-3-yl)ethyl](methyl)propan-2-ylazanium 3-carboxyprop-2-enoate monohydrate.<ref name="Chadeayne_2019" /> The salt consists of a protonated tryptammonium cation and a 3-carboxyacrylate (hydrogen fumarate) anion in the asymmetric unit along with a water molecule of crystallization.<ref name="Chadeayne_2019" />
+
+===Synthesis===
+The [[chemical synthesis]] of 4-HO-MiPT has been described.<ref name="TiHKAL" /><ref name="Repke_1981" />
+
+===Analogues===
+[[Structural analog|Analogue]]s of 4-HO-MiPT include [[N-methyl-N-isopropyltryptamine|''N''-methyl-''N''-isopropyltryptamine]] (MiPT), [[4-AcO-MiPT]], [[4-MeO-MiPT]], [[5-MeO-MiPT]], [[4-HO-DiPT]], [[psilocin]] (4-HO-DMT), [[4-HO-MET]], [[4-HO-EiBT]], and [[4-HO-McPT]], among others.<ref name="TiHKAL" />
+
+==History==
+4-HO-MiPT was first described in the [[scientific literature]] by [[David Repke]] and colleagues in 1981.<ref name="Chadeayne_2019">{{cite journal | vauthors = Chadeayne AR, Pham DN, Golen JA, Manke DR | title = The fumarate salts of the ''N''-isopropyl-''N''-methyl derivatives of DMT and psilocin | journal = Acta Crystallographica Section E | volume = 75 | issue = Pt 9 | pages = 1316–1320 | date = September 2019 | pmid = 31523457 | pmc = 6727059 | doi = 10.1107/S2056989019011253  | doi-access = free| quote = The synthesis of N-methyl-N-isopropyltryptamine (MiPT) was reported in 1981 (Repke et al., 1981). In 1985, Repke and co-workers reported that of the compounds in the series of N,N-dialkyl-4-hydroxytryptamines, the N-methyl-N-isopropyl derivative (4-HO-MiPT) is the most potent based upon qualitative effects on humans (Repke et al., 1985). Later quantitative studies showed the N-methyl-N-isopropyl derivatives of DMT and psilocin to be more potent as seratonin-1A, 2A and 2B receptors compared to the analogous dimethyl compounds (McKenna et al., 1990). | bibcode = 2019AcCrE..75.1316C }}</ref><ref name="Chadeayne_2020">{{cite journal | vauthors = Chadeayne AR, Pham DN, Golen JA, Manke DR | title = Bis(4-hy-droxy-''N''-isopropyl-''N''-methyl-trypt-ammo-nium) fumarate: a new crystalline form of miprocin | journal = Acta Crystallographica Section E | volume = 76 | issue = Pt 4 | pages = 514–517 | date = April 2020 | pmid = 32280495 | pmc = 7133045 | doi = 10.1107/S2056989020002923  | doi-access = free| quote = 4-Hydroxy-N-methyl-N-isopropyltryptamine (4-HOMiPT), aka ‘miprocin’, is a psilocybin analogue. Its synthesis was first reported in 1981 by Repke and co-workers (Repke et al., 1981); its psychedelic effects were later described in collaboration with Alexander Shulgin (Repke et al., 1985). Miprocin is reported to produce an experience that is both relaxing, stoning and mildly sedating with a marked physical stimulation that distinguishes it from related substances such as psilocybin mushrooms. In a report last year, we presented the first structure of 4-HO-MiPT (Chadeayne, Pham et al., 2019a), which crystallizes as the hydrofumarate monohydrate. Herein we report the reaction of this salt with lead(II) acetate to generate the 4-hydroxy-N-isopropyl-N-methyltryptaminium/fumarate compound in a 2:1 ratio. The solid state structure of the new salt is presented here. | bibcode = 2020AcCrE..76..514C }}</ref><ref name="Bauer_2020" /><ref name="Repke_1981">{{cite journal | vauthors = Repke DB, Ferguson WJ, Bates DK | title = Psilocin analogs II. Synthesis of 3-[2-(dialkylamino)ethyl]-, 3-[2-(N-methyl-N-alkylamino)ethyl]-, and 3-[2-(cycloalkylamino)ethyl]indol-4-ols | journal = Journal of Heterocyclic Chemistry | volume = 18 | issue = 1 | pages = 175–179 | date = 1981 | doi = 10.1002/jhet.5570180131 | issn = 0022-152X }}</ref> Its effects in humans were described by Repke and [[Alexander Shulgin]] and colleagues in 1985.<ref name="Chadeayne_2019" /><ref name="Chadeayne_2020" /><ref name="Repke_1985" /> The [[pharmacology]] of 4-HO-MiPT at [[serotonin receptor]]s was described by [[Dennis McKenna]] and Repke and colleagues in 1990.<ref name="Chadeayne_2019" /><ref name="McKenna_1990">{{cite journal | vauthors = McKenna DJ, Repke DB, Lo L, Peroutka SJ | title = Differential interactions of indolealkylamines with 5-hydroxytryptamine receptor subtypes | journal = Neuropharmacology | volume = 29 | issue = 3 | pages = 193–198 | date = March 1990 | pmid = 2139186 | doi = 10.1016/0028-3908(90)90001-8 }}</ref> The effects of 4-HO-MiPT in humans were described in greater detail by Shulgin in his 1997 book ''[[TiHKAL]]'' (''Tryptamines I Have Known and Loved'').<ref name="TiHKAL" /><ref name="Bauer_2020" />
+
+==Society and culture==
+===Legal status===
+====Canada====
+4-HO-MiPT is not a [[controlled substance]] in [[Canada]] as of 2025.<ref name="CDSA">{{cite web | title=Controlled Drugs and Substances Act | website=Department of Justice Canada | url=https://laws-lois.justice.gc.ca/eng/acts/c-38.8/FullText.html | access-date=19 January 2026}}</ref>
+
+====Russia====
+4-HO-MiPT is in Schedule 1 in [[Russia]] as an analog of 4-hydroxytryptamine.{{Citation needed|date=October 2025}}
+
+====Sweden====
+[[Riksdag|''Sveriges riksdags'']] health ministry [[:sv:Statens folkhälsoinstitut|Statens folkhälsoinstitut]] classified 4-HO-MiPT as "health hazard" under the act ''[[:sv:Lagen om förbud mot vissa hälsofarliga varor|Lagen om förbud mot vissa hälsofarliga varor]]'' (translated ''Act on the Prohibition of Certain Goods Dangerous to Health'') as of 1 November 2005, in regulation SFS 2005:733 listed as "4-hydroxi-N,N-metylisopropyltryptamin (4-HO-MIPT)", making it illegal to sell or possess.<ref>{{cite web | title = Förordning om ändring i förordningen (1999:58) om förbud mot vissa hälsofarliga varor | date = 6 October 2005 | language = Swedish | trans-title = Regulation amending the Ordinance (1999: 58) on Prohibition against certain dangerous goods | url = http://www.notisum.se/rnp/sls/sfs/20050733.pdf | work = Swedish Code of Statutes | access-date = 6 September 2013 | archive-date = 26 June 2021 | archive-url = https://web.archive.org/web/20210626164247/http://www.notisum.se/rnp/sls/sfs/20050733.pdf | url-status = dead }}</ref>
+
+====United Kingdom====
+The substance could also be considered illegal in the [[United Kingdom]] under the [[Misuse of Drugs Act 1971]].{{Citation needed|date=October 2025}}
+
+====United States====
+4-HO-MiPT is an unscheduled drug in the [[United States]]. However, it is arguably an [[structural analog|analog]] of psilocin, which could lead to prosecution under the [[Federal Analog Act]].{{Citation needed|date=October 2025}}
+
+== See also ==
+* [[Substituted tryptamine]]
+
+== References ==
+{{Reflist}}
+
+== External links ==
+* [https://isomerdesign.com/pihkal/explore/5022 4-HO-MIPT - Isomer Design]
+* [https://psychonautwiki.org/wiki/4-HO-MiPT 4-HO-MiPT - PsychonautWiki]
+* [http://www.erowid.org/chemicals/4_ho_mipt/4_ho_mipt.shtml 4-HO-MiPT - Erowid]
+* [http://www.erowid.org/library/books_online/tihkal/tihkal22.shtml 4-HO-MIPT - TiHKAL - Erowid]
+* [http://tihkal.info/read.php?domain=tk&id=22 4-HO-MIPT - TiHKAL - Isomer Design]
+* [https://www.bluelight.org/xf/threads/154051 The Big & Dandy 4-HO-MiPT Thread - Bluelight]
+
+{{Psychedelics}}
+{{Serotonin receptor modulators}}
+{{Monoamine reuptake inhibitors}}
+{{Tryptamines}}
+
+{{DEFAULTSORT:4-Ho-Mipt}}
+[[Category:5-HT2A agonists]]
+[[Category:5-HT2B agonists]]
+[[Category:5-HT2C agonists]]
+[[Category:David Repke]]
+[[Category:Designer drugs]]
+[[Category:N,N-Dialkyltryptamines]]
+[[Category:Entheogens]]
+[[Category:4-Hydroxytryptamines]]
+[[Category:Isopropylamino compounds]]
+[[Category:Psychedelic tryptamines]]
+[[Category:Serotonin receptor agonists]]
+[[Category:Serotonin reuptake inhibitors]]
+[[Category:TiHKAL]]

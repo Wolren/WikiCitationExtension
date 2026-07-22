@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
-import { processWikitext } from "../src/content";
-import { findCitations } from "../src/lib/wikitext";
-import { resetApiProbeCache } from "../src/wiki-detector";
-import type { StorageSettings } from "../src/lib/types";
+import { processWikitext } from "../../src/content";
+import { findCitations } from "../../src/lib/wikitext";
+import { resetApiProbeCache } from "../../src/wiki-detector";
+import type { StorageSettings } from "../../src/lib/types";
 
 beforeAll(() => {
   delete (globalThis as any).location;
@@ -31,7 +31,7 @@ const ARTICLES: ArticleDef[] = [
   { title: "History of evolutionary thought", file: "History_of_evolutionary_thought", minCitations: 15 },
 ];
 
-const CACHE_DIR = join(__dirname, "fixtures", "texts");
+const CACHE_DIR = join(__dirname, "..", "fixtures", "texts");
 
 function getCachePath(file: string): string {
   return join(CACHE_DIR, `${file}.txt`);
@@ -627,7 +627,7 @@ describe("fixture patterns in article context", () => {
       for (const n of fx.noChecks) expect(standalone.text).not.toContain(n);
 
       // Verify in each article context
-      for (const [file, articleText] of articleTexts) {
+      for (const [_file, articleText] of articleTexts) {
         const injected = fx.input + "\n\n" + articleText;
         const result = await processWikitext(injected, baseSettings);
         for (const c of fx.checks) expect(result.text).toContain(c);

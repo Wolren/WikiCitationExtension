@@ -63,19 +63,48 @@ async function build() {
   // Package as .zip (Chrome) and .xpi (Firefox/Waterfox)
   const zipPath = join(__dirname, "wikifix-extension.zip");
   const xpiPath = join(__dirname, "wikifix-extension.xpi");
+  const manifestPath = join(DIST, "manifest.json");
+
   try {
-    const zip = new JSZip();
+    // Read and parse the original manifest
+    const origManifestRaw = readFileSync(manifestPath, "utf-8");
+    const origManifest = JSON.parse(origManifestRaw);
+
+    // Build .zip with Chrome manifest (service_worker)
+    const chromeZip = new JSZip();
     (function addDir(dir, base) {
       for (const name of readdirSync(dir)) {
         const full = join(dir, name);
         const entry = join(base, name).replace(/\\/g, "/");
         if (statSync(full).isDirectory()) addDir(full, entry);
-        else zip.file(entry, readFileSync(full));
+        else chromeZip.file(entry, readFileSync(full));
       }
     })(DIST, "");
-    const buf = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
-    writeFileSync(zipPath, buf);
-    writeFileSync(xpiPath, buf);
+    const chromeBuf = await chromeZip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
+    writeFileSync(zipPath, chromeBuf);
+
+    // Build .xpi with Firefox manifest (background.scripts instead of service_worker)
+    const ffManifest = { ...origManifest };
+    if (ffManifest.background && ffManifest.background.service_worker) {
+      ffManifest.background = { scripts: [ffManifest.background.service_worker] };
+    }
+    writeFileSync(manifestPath, JSON.stringify(ffManifest, null, 2), "utf-8");
+
+    const firefoxZip = new JSZip();
+    (function addDir(dir, base) {
+      for (const name of readdirSync(dir)) {
+        const full = join(dir, name);
+        const entry = join(base, name).replace(/\\/g, "/");
+        if (statSync(full).isDirectory()) addDir(full, entry);
+        else firefoxZip.file(entry, readFileSync(full));
+      }
+    })(DIST, "");
+    const xpiBuf = await firefoxZip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
+    writeFileSync(xpiPath, xpiBuf);
+
+    // Restore Chrome manifest in dist/
+    writeFileSync(manifestPath, origManifestRaw, "utf-8");
+
     console.log(`Packaged: ${zipPath} + ${xpiPath}`);
   } catch (e) {
     console.log("Skipped packaging:", e.message);

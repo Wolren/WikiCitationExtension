@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { processWikitext } from "../src/content";
-import { findCitations } from "../src/lib/wikitext";
-import { resetApiProbeCache } from "../src/wiki-detector";
-import type { StorageSettings } from "../src/lib/types";
+import { processWikitext } from "../../src/content";
+import { findCitations } from "../../src/lib/wikitext";
+import { resetApiProbeCache } from "../../src/wiki-detector";
+import type { StorageSettings } from "../../src/lib/types";
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 
@@ -11,13 +11,13 @@ import { join } from "path";
 //   Phase 2 (pure TS):  run all configs against cached articles, compare against
 //                        cached Wikipedia parse results — zero network
 //
-// Run once: VALIDATE_ON_WIKIPEDIA=true npx vitest run tests/validate-on-wikipedia.test.ts
-// Re-runs:  just npx vitest run — uses cache, no network, fast
+// Run once: VALIDATE_ON_WIKIPEDIA=true npx vitest run tests/validate-on-wikipedia.api.test.ts
+// Re-runs:  npx vitest run — uses cache, no network, fast
 
 const RUN_ON_WIKI = process.env.VALIDATE_ON_WIKIPEDIA === "true";
 const ARTICLES_TO_FETCH = parseInt(process.env.WIKI_ARTICLE_COUNT || "5", 10);
 
-const CACHE_DIR = join(__dirname, "fixtures", "wiki-validation");
+const CACHE_DIR = join(__dirname, "..", "fixtures", "wiki-validation");
 const ORIGINALS_FILE = join(CACHE_DIR, "originals.json");
 const PARSED_ORIGINALS_FILE = join(CACHE_DIR, "parsed-originals.json");
 const PARSED_PROCESSED_FILE = join(CACHE_DIR, "parsed-processed.json");

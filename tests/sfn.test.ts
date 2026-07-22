@@ -427,6 +427,7 @@ describe("convertToSfn", () => {
   });
 
   it("handles colon page suffix after {{rp}} annotation", () => {
+    // eslint-disable-next-line no-irregular-whitespace
     const input = `<ref>{{cite web |last=Smith |first=JA |title=Foo |year=2020}}</ref>{{rp|10}}: 2–4`;
     const result = convertToSfn(input);
     // last page annotation wins (colon suffix is last)
@@ -435,6 +436,7 @@ describe("convertToSfn", () => {
   });
 
   it("handles colon page suffix after <sup> annotation", () => {
+    // eslint-disable-next-line no-irregular-whitespace
     const input = `<ref>{{cite web |last=Smith |first=JA |title=Foo |year=2020}}</ref><sup>10</sup>: 2–4`;
     const result = convertToSfn(input);
     // colon suffix is the last annotation, so its pages win
@@ -443,6 +445,7 @@ describe("convertToSfn", () => {
   });
 
   it("handles colon page suffix alone after ref", () => {
+    // eslint-disable-next-line no-irregular-whitespace
     const input = `<ref>{{cite web |last=Smith |first=JA |title=Foo |year=2020}}</ref>: 2–4`;
     const result = convertToSfn(input);
     expect(result).toContain("{{sfn|Smith|2020|pp=2–4}}");
@@ -450,6 +453,7 @@ describe("convertToSfn", () => {
   });
 
   it("handles single-page colon suffix after {{rp}}", () => {
+    // eslint-disable-next-line no-irregular-whitespace
     const input = `<ref>{{cite web |last=Smith |first=JA |title=Foo |year=2020}}</ref>{{rp|p=15}}: 42`;
     const result = convertToSfn(input);
     expect(result).toContain("{{sfn|Smith|2020|p=42}}");
@@ -599,7 +603,8 @@ describe("convertToSfn", () => {
     // Remaining <sup>
     const outSupHtml = (result.match(/<sup[^>]*>.*?<\/sup>/gi) || []).length;
     // Remaining colon-suffix
-    const outColon = (result.match(/: ?\d[\d\-\u2013,]*/g) || []).filter(m => /^: ?\d/.test(m)).length;
+    // eslint-disable-next-line no-irregular-whitespace
+    const outColon = (result.match(/: ?\\d[\\d\\-\\u2013,]*/g) || []).filter(m => /^: ?\\d/.test(m)).length;
 
     // ── Integrity rules ──
     // 1. Every ref reuse → either sfn or remaining ref

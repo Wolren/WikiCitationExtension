@@ -56,7 +56,7 @@ export class PersistentCache<T = unknown> {
   }
 
   private init(): Promise<void> {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve, _reject) => {
       if (typeof indexedDB === 'undefined') { resolve(); return; }
       const request = indexedDB.open(this.dbName, 1);
       request.onupgradeneeded = () => {

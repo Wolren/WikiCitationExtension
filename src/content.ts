@@ -7,9 +7,9 @@ import { generateDiff } from "./lib/diff";
 import { convertToSfn, type SfnOptions } from "./lib/sfn";
 import { processAuthors } from "./lib/authors";
 import { setApiKeys, fetchCrossrefAuthors, searchNCBIPmid, searchNCBIPmc, fetchSemanticScholar, fetchOpenAlex, saveWayback, editPage } from "./lib/api";
-import { decrypt } from "./lib/crypto";
-import type { StorageSettings, Citation, ProgressCallback, ProcessResult, ProcessStats } from "./lib/types";
-import { detectWiki, isEditPage, getPageTitle as getWikiPageTitle, probeApiUrl, getDisabledModules } from "./wiki-detector";
+import { decrypt, isEncrypted } from "./lib/crypto";
+import type { StorageSettings, Citation, ProgressCallback, ProcessResult, ProcessStats, ProcessingError } from "./lib/types";
+import { detectWiki, isEditPage, getPageTitle as getWikiPageTitle, probeApiUrl, getDisabledModules, getSettingsKey } from "./wiki-detector";
 import { findEditor, waitForEditor, isVisualEditorActive, findVeSourceTab, type EditorHandle } from "./editor-adapter";
 export { escapeRe };
 
@@ -57,6 +57,21 @@ const CSS = `
 .wikifix-progress-bar-wrapper {
   width: 120px; display: flex; align-items: center;
 }
+.wikifix-progress-cancel {
+  background: none; border: 1px solid #a2a9b1; color: #72777d;
+  cursor: pointer; border-radius: 2px; padding: 1px 8px;
+  font-size: 11px; line-height: 1.5; font-family: inherit;
+  white-space: nowrap; flex-shrink: 0;
+}
+.wikifix-progress-cancel:hover { background: #eaecf0; color: #202122; }
+
+.wikifix-undo-btn {
+  display: inline-block; margin-top: 8px; padding: 4px 10px;
+  background: #00af89; color: #fff; border: none; border-radius: 2px;
+  cursor: pointer; font-size: 12px; font-family: inherit;
+}
+.wikifix-undo-btn:hover { background: #00c89c; }
+.wikifix-undo-btn + .wikifix-close-btn { margin-left: 6px; }
 
 #${BUTTON_ID} {
   display: inline-flex;
@@ -191,36 +206,23 @@ function cmSelector(): string {
   return ".cm-editor, .CodeMirror";
 }
 
-function placeAboveCm(btn: HTMLButtonElement): boolean {
-  const cmEl = document.querySelector<HTMLElement>(cmSelector());
-  if (cmEl) {
-    const old = document.getElementById(BUTTON_ID);
-    if (old) old.remove();
-    const wrapper = document.createElement("div");
-    wrapper.style.cssText = "position:absolute !important;top:4px !important;right:4px !important;z-index:100 !important;";
-    btn.classList.add("wikifix-toolbar-btn");
-    wrapper.appendChild(btn);
-    cmEl.appendChild(wrapper);
-    return true;
+function updateButtonLabel(): void {
+  const btn = document.getElementById(BUTTON_ID) as HTMLElement | null;
+  if (!btn) return;
+  const editor = findEditor();
+  let label: string;
+  if (editor) {
+    const sel = editor.getSelection();
+    if (sel && sel.text.trim().length > 0) {
+      label = t("btnFixSelection");
+    } else {
+      label = t("btnFixCitations");
+    }
+  } else {
+    label = t("btnFixCitations");
   }
-  return false;
-}
-
-function domAddButton(): void {
-  // Remove any existing button before creating a new one
-  const old = document.getElementById(BUTTON_ID);
-  if (old) old.remove();
-
-  const btn = document.createElement("button");
-  btn.id = BUTTON_ID;
-  btn.type = "button";
-  btn.innerHTML = `${WAND_ICON} ${t("btnFixCitations")}`;
-  btn.setAttribute("aria-label", t("btnFixCitations"));
-  btn.addEventListener("click", onClick);
-  btn.classList.add("wikifix-toolbar-btn");
-
-  if (placeAboveCm(btn)) return;
-  injectButtonNearEditor(btn, findEditor());
+  btn.innerHTML = `${WAND_ICON} ${label}`;
+  btn.setAttribute("aria-label", label);
 }
 
 function addBtnToCm(cmEditor: HTMLElement): void {
@@ -235,6 +237,7 @@ function addBtnToCm(cmEditor: HTMLElement): void {
   btn.classList.add("wikifix-toolbar-btn");
   wrapper.appendChild(btn);
   cmEditor.appendChild(wrapper);
+  updateButtonLabel();
 }
 
 function addBtnToToolbar(toolbar: HTMLElement): void {
@@ -249,6 +252,7 @@ function addBtnToToolbar(toolbar: HTMLElement): void {
   btn.classList.add("wikifix-toolbar-btn");
   wrapper.appendChild(btn);
   toolbar.appendChild(wrapper);
+  updateButtonLabel();
 }
 
 export function addButton(): void {
@@ -279,7 +283,7 @@ export function addButton(): void {
             if (old) old.remove();
             return;
           } catch (e) {
-            console.warn("[WikiCitationFixer] addToToolbar:", e);
+            console.warn("[WikiCitationExtension] addToToolbar:", e);
           }
         }
       });
@@ -366,7 +370,7 @@ export function addButton(): void {
     if (cmEl2?.parentElement) { addBtnToCm(cmEl2); return; }
 
     // Dump DOM state for debugging
-    console.debug("[WikiCitationFixer] DOM state:", {
+    console.debug("[WikiCitationExtension] DOM state:", {
       cmEditor: !!document.querySelector(cmSelector()),
       toolbar: !!findToolbar(),
       wpTextbox1: !!document.getElementById("wpTextbox1"),
@@ -397,42 +401,19 @@ export function addButton(): void {
     btn.style.cssText = "position:fixed !important;top:10px !important;right:10px !important;z-index:10000 !important;";
     document.body.appendChild(btn);
   }, 20000);
-}
 
-function injectButtonNearEditor(btn: HTMLButtonElement, editor: EditorHandle | null): void {
-  btn.classList.add("wikifix-toolbar-btn");
-  const wrap = () => el("span", { style: "display:inline-block;padding:6px 4px;vertical-align:middle;" }, btn);
-
-  // 1. Try known toolbar selectors
-  const toolbar = findToolbar();
-  if (toolbar) { toolbar.appendChild(wrap()); return; }
-
-  // 2. Try the #editform's toolbar section (more generic)
-  const editForm = document.getElementById("editform");
-  const toolbarInForm = editForm?.querySelector<HTMLElement>(
-    '[class*="toolbar"], [class*="Toolbar"], .oo-ui-toolbar, [role="toolbar"]'
-  );
-  if (toolbarInForm) { toolbarInForm.appendChild(wrap()); return; }
-
-  // 3. Try placing before the editor element
-  if (editor) {
-    editor.element.before(el("div", { style: "display:flex;justify-content:flex-end;padding:4px 0;" }, btn));
-    return;
+  // Track selection changes to update button label
+  function onSelectionChange(): void {
+    const btn = document.getElementById(BUTTON_ID);
+    if (!btn) return;
+    updateButtonLabel();
   }
-
-  // 4. Top of #editform
-  if (editForm) { editForm.prepend(el("div", { style: "display:flex;justify-content:flex-end;padding:4px 0;" }, btn)); return; }
-
-  // 5. Before #wpTextbox1
-  const ta = document.getElementById("wpTextbox1");
-  if (ta) { ta.before(el("div", { style: "display:flex;justify-content:flex-end;padding:4px 0;" }, btn)); return; }
-
-  // 6. After the page title (always near the top of the page)
-  const title = document.querySelector<HTMLElement>("#firstHeading, .mw-page-title-main, h1");
-  if (title) { title.after(el("div", { style: "display:flex;justify-content:flex-end;padding:4px 0;" }, btn)); return; }
-
-  // 7. Prepend to body (top of page, not bottom)
-  document.body.prepend(btn);
+  document.addEventListener("mouseup", onSelectionChange);
+  document.addEventListener("keyup", (e) => {
+    if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "Shift"].includes(e.key)) {
+      onSelectionChange();
+    }
+  });
 }
 
 function findToolbar(): HTMLElement | null {
@@ -498,16 +479,6 @@ function findToolbar(): HTMLElement | null {
   return null;
 }
 
-function el(tag: string, attrs: Record<string, string>, ...children: Node[]): HTMLElement {
-  const node = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) {
-    if (k === "className") node.className = v;
-    else node.setAttribute(k, v);
-  }
-  for (const child of children) node.appendChild(child);
-  return node;
-}
-
 const DEFAULT_SETTINGS: StorageSettings = {
   modules: DEFAULT_MODULES,
   force: false,
@@ -531,20 +502,23 @@ function validateSettings(s: Record<string, unknown>): boolean {
 
 export async function getSettings(): Promise<StorageSettings> {
   try {
-    const raw = await browser.storage.local.get(STORAGE_KEY);
-    const stored = raw[STORAGE_KEY] as Record<string, unknown> | undefined;
+    // Try per-variant settings first, fall back to global
+    const variantKey = getSettingsKey();
+    const globalKey = STORAGE_KEY;
+    const raw = await browser.storage.local.get([variantKey, globalKey]);
+    const stored = (raw[variantKey] || raw[globalKey]) as Record<string, unknown> | undefined;
     if (!stored) return { ...DEFAULT_SETTINGS };
 
     // Migrate: remove deprecated serverUrl field
     if ('serverUrl' in stored) {
       const cleaned = { ...stored };
       delete cleaned.serverUrl;
-      await browser.storage.local.set({ [STORAGE_KEY]: cleaned });
+      await browser.storage.local.set({ [variantKey]: cleaned });
       return cleaned as unknown as StorageSettings;
     }
 
     if (!validateSettings(stored)) {
-      console.warn("[WikiCitationFixer] Invalid settings in storage, using defaults");
+      console.warn("[WikiCitationExtension] Invalid settings in storage, using defaults");
       return { ...DEFAULT_SETTINGS };
     }
 
@@ -552,7 +526,7 @@ export async function getSettings(): Promise<StorageSettings> {
     // Decrypt sensitive fields
     for (const key of ["crossref_email", "ncbi_api_key", "semantic_scholar_api_key"] as const) {
       const raw = settings[key] || "";
-      if (raw.length > 32) {
+      if (isEncrypted(raw)) {
         const decrypted = await decrypt(raw);
         if (decrypted !== null) (settings as unknown as Record<string, string>)[key] = decrypted;
       }
@@ -561,6 +535,17 @@ export async function getSettings(): Promise<StorageSettings> {
   } catch {
     return { ...DEFAULT_SETTINGS };
   }
+}
+
+// Respond to variant queries from popup (routed through background)
+if (typeof browser !== "undefined") {
+  try {
+    browser.runtime.onMessage.addListener((message: any) => {
+      if (message.type === "getWikiVariant") {
+        return Promise.resolve({ variant: detectWiki().variant });
+      }
+    });
+  } catch { /* not in extension context */ }
 }
 
 function showProgress(current: number, total: number, message: string, barFill?: number): void {
@@ -574,13 +559,18 @@ function showProgress(current: number, total: number, message: string, barFill?:
       <div class="wikifix-progress-bar-wrapper">
         <div class="wikifix-progress-bar"><div class="wikifix-progress-fill" id="wikifix-progress-bar" style="width:0%"></div></div>
       </div>
-      <span class="wikifix-progress-label" id="wikifix-progress-label">Starting...</span>`;
+      <span class="wikifix-progress-label" id="wikifix-progress-label">Starting...</span>
+      <button class="wikifix-progress-cancel" id="wikifix-progress-cancel" type="button">Cancel</button>`;
     const btn = document.getElementById(BUTTON_ID);
     if (btn?.parentElement) {
       btn.parentElement.insertBefore(progressDiv, btn.nextSibling);
     } else {
       document.body.appendChild(progressDiv);
     }
+    // Wire cancel button
+    document.getElementById("wikifix-progress-cancel")?.addEventListener("click", () => {
+      _abortController?.abort();
+    });
     bar = document.getElementById("wikifix-progress-bar") as HTMLDivElement;
     label = document.getElementById("wikifix-progress-label") as HTMLSpanElement;
   }
@@ -597,11 +587,41 @@ function hideProgress(): void {
 }
 
 let _processing = false;
+let _abortController: AbortController | null = null;
+let _undoEditor: EditorHandle | null = null;
+let _undoOriginalText: string | null = null;
+
+function showSuccessWithUndo(message: string, desc: string): void {
+  const html = desc + `<button class="wikifix-undo-btn">Undo</button>`;
+  showNotification("success", message, html);
+  // Wire undo button via event delegation on the notification
+  const note = document.getElementById(NOTE_ID);
+  if (!note) return;
+  const handler = (e: Event) => {
+    if ((e.target as HTMLElement).classList.contains("wikifix-undo-btn")) {
+      if (_undoEditor && _undoOriginalText !== null) {
+        _undoEditor.setText(_undoOriginalText);
+        const ta = document.getElementById("wpTextbox1") as HTMLTextAreaElement | null;
+        if (ta) ta.value = _undoOriginalText;
+        note.style.display = "none";
+      }
+    }
+  };
+  // Use capturing to fire before any other close handlers
+  note.addEventListener("click", handler);
+  // Clean up the listener when the note is closed
+  const cleanup = () => {
+    note.removeEventListener("click", handler);
+    note.removeEventListener("webkitAnimationEnd", cleanup);
+  };
+  note.addEventListener("webkitAnimationEnd", cleanup);
+}
 
 /** @internal exported for testing */
 export async function onClick(): Promise<void> {
   if (_processing) return;
   _processing = true;
+  _abortController = new AbortController();
   try {
     const settings = await getSettings();
     if (isEditPage()) {
@@ -611,10 +631,11 @@ export async function onClick(): Promise<void> {
     }
   } catch (e: unknown) {
     const msg = (e as Error).message || String(e);
-    console.error("[WikiCitationFixer]", e);
+    console.error("[WikiCitationExtension]", e);
     showNotification("error", t("errorProcessing", msg));
   } finally {
     _processing = false;
+    _abortController = null;
     hideProgress();
   }
 }
@@ -646,17 +667,17 @@ export async function fixInEditor(settings: StorageSettings): Promise<void> {
       if (!title) { showNotification("error", t("notifNoTitle")); return; }
       const wikitext = await fetchWikitext(title);
       if (!wikitext) { showNotification("error", t("notifFetchFailed")); return; }
-      const result = await processWikitext(wikitext, settings, undefined, (info) => {
+      const result = await processWikitext(wikitext, settings, _abortController?.signal, (info) => {
         showProgress(info.current, info.total, info.message);
       });
-      const { text: fixed, stats } = result;
+      const { text: fixed, stats, errors } = result;
       const diff = generateDiff(wikitext, fixed);
       let apiBase: string | undefined;
       const wiki = detectWiki();
       const probed = await probeApiUrl(wiki);
       if (probed) apiBase = probed;
       else if (wiki.apiUrl) apiBase = wiki.apiUrl;
-      showDiffPanel(fixed, diff, title, stats, apiBase);
+      showDiffPanel(fixed, diff, title, stats, apiBase, errors);
       return;
     }
   }
@@ -667,7 +688,15 @@ export async function fixInEditor(settings: StorageSettings): Promise<void> {
     return;
   }
 
-  const result = await processWikitext(wikitext, settings, undefined, (info) => {
+  // Check for text selection — process only the selected fragment
+  const sel = editor.getSelection();
+  const isSelectionMode = sel !== null && sel.text.trim().length > 0;
+
+  const textToProcess = isSelectionMode ? sel!.text : wikitext;
+  const prefix = isSelectionMode ? wikitext.substring(0, sel!.start) : "";
+  const suffix = isSelectionMode ? wikitext.substring(sel!.end) : "";
+
+  const result = await processWikitext(textToProcess, settings, _abortController?.signal, (info) => {
     showProgress(info.current, info.total, info.message);
   });
 
@@ -677,15 +706,27 @@ export async function fixInEditor(settings: StorageSettings): Promise<void> {
     return;
   }
 
-  if (wikitext === fixed) {
+  if (textToProcess === fixed) {
     showNotification("info", t("notifNoChanges"));
     return;
   }
 
+  // Reconstruct full text (selection mode replaces only the fragment)
+  const fullFixed = isSelectionMode ? prefix + fixed + suffix : fixed;
+
   // Write to editor and sync to textarea for form submission
-  let wrote = editor.setText(fixed);
+  const wrote = editor.setText(fullFixed);
   const ta = document.getElementById("wpTextbox1") as HTMLTextAreaElement | null;
-  if (ta) ta.value = fixed;
+  if (ta) ta.value = fullFixed;
+
+  // Restore selection to highlight the changed region (selection mode only)
+  if (isSelectionMode) {
+    const selStart = sel!.start;
+    const selEnd = sel!.start + fixed.length;
+    editor.setSelection(selStart, selEnd);
+    if (ta) ta.setSelectionRange(selStart, selEnd);
+  }
+
   if (!wrote && !ta) {
     // Fallback: try API-based edit
     const title = getPageTitle();
@@ -694,12 +735,23 @@ export async function fixInEditor(settings: StorageSettings): Promise<void> {
     let apiBase = wiki.apiUrl || `${window.location.origin}/w/api.php`;
     const probed = await probeApiUrl(wiki);
     if (probed) apiBase = probed;
-    const ok = await editPage(apiBase, title, fixed, "chore: fixed citation formatting");
+    const ok = await editPage(apiBase, title, fullFixed, "chore: fixed citation formatting");
     if (ok) {
       showNotification("success", t(stats.changed === 1 ? "statsChanged" : "statsChangedPlural", String(stats.changed)), formatStatsSummary(stats));
     } else {
       showNotification("error", t("errorProcessing", "Could not save changes. Try copying the diff manually."));
     }
+    return;
+  }
+
+  // Register undo state after successful write
+  _undoEditor = editor;
+  _undoOriginalText = wikitext;
+
+  // Selection mode: no full diff, just confirm and show stats
+  if (isSelectionMode) {
+    const desc = formatStatsSummary(stats);
+    showSuccessWithUndo(t(stats.changed === 1 ? "statsChanged" : "statsChangedPlural", String(stats.changed)), desc);
     return;
   }
 
@@ -709,19 +761,19 @@ export async function fixInEditor(settings: StorageSettings): Promise<void> {
   if (diffBtn) {
     const diffFallbackTimer = setTimeout(() => {
       observer.disconnect();
-      showNotification("success", t(stats.changed === 1 ? "statsChanged" : "statsChangedPlural", String(stats.changed)), desc);
+      showSuccessWithUndo(t(stats.changed === 1 ? "statsChanged" : "statsChangedPlural", String(stats.changed)), desc);
     }, 8000);
     const observer = new MutationObserver((_, obs) => {
       if (document.querySelector(".diff, #mw-diff-otitle, table.diff")) {
         obs.disconnect();
         clearTimeout(diffFallbackTimer);
-        setTimeout(() => showNotification("success", t(stats.changed === 1 ? "statsChanged" : "statsChangedPlural", String(stats.changed)), desc), 100);
+        setTimeout(() => showSuccessWithUndo(t(stats.changed === 1 ? "statsChanged" : "statsChangedPlural", String(stats.changed)), desc), 100);
       }
     });
     observer.observe(document.body, { childList: true, subtree: true });
     setTimeout(() => diffBtn.click(), 300);
   } else {
-    showNotification("success", t(stats.changed === 1 ? "statsChanged" : "statsChangedPlural", String(stats.changed)), desc);
+    showSuccessWithUndo(t(stats.changed === 1 ? "statsChanged" : "statsChangedPlural", String(stats.changed)), desc);
   }
 }
 
@@ -733,11 +785,11 @@ export async function fixLocally(settings: StorageSettings): Promise<void> {
   const wikitext = await fetchWikitext(title);
   if (!wikitext) { showNotification("error", t("notifFetchFailed")); return; }
 
-  const result = await processWikitext(wikitext, settings, undefined, (info) => {
+  const result = await processWikitext(wikitext, settings, _abortController?.signal, (info) => {
     showProgress(info.current, info.total, info.message);
   });
 
-  const { text: fixed, stats } = result;
+  const { text: fixed, stats, errors } = result;
   const diff = generateDiff(wikitext, fixed);
 
   let apiBase: string | undefined;
@@ -746,7 +798,7 @@ export async function fixLocally(settings: StorageSettings): Promise<void> {
   if (probed) apiBase = probed;
   else if (wiki.apiUrl) apiBase = wiki.apiUrl;
 
-  showDiffPanel(fixed, diff, title, stats, apiBase);
+  showDiffPanel(fixed, diff, title, stats, apiBase, errors);
 }
 
 function moduleEnabled(modules: string, name: string): boolean {
@@ -775,7 +827,7 @@ export async function processWikitext(
     semanticScholarKey: settings.semantic_scholar_api_key || "",
   });
 
-  if (signal?.aborted) return { text, stats: createEmptyStats(), aborted: true };
+  if (signal?.aborted) return { text, stats: createEmptyStats(), aborted: true, errors: [] };
 
   _isOffline = typeof navigator !== "undefined" && !navigator.onLine;
 
@@ -785,12 +837,13 @@ export async function processWikitext(
   const total = citations.length;
   const stats = createEmptyStats();
   stats.total = total;
+  const errors: ProcessingError[] = [];
 
-  if (signal?.aborted) return { text, stats, aborted: true };
+  if (signal?.aborted) return { text, stats, aborted: true, errors };
 
   if (total === 0) {
     onProgress?.({ current: 0, total: 0, phase: 'done', message: t("progressNoCitations") });
-    return { text, stats, aborted: false };
+    return { text, stats, aborted: false, errors };
   }
 
   const wiki = detectWiki();
@@ -800,16 +853,10 @@ export async function processWikitext(
   const refNamesEnabled = settings.auto_update || settings.ref_names;
   const usedRefNames = new Set<string>();
 
-  interface DataResult {
-    params: Record<string, string>;
-    changed: boolean;
-    newTemplateType: string | null;
-  }
-
   const allReplacements: { start: number; end: number; replacement: string }[] = [];
 
   for (let batchStart = 0; batchStart < total; batchStart += BATCH_SIZE) {
-    if (signal?.aborted) return { text, stats, aborted: true };
+    if (signal?.aborted) return { text, stats, aborted: true, errors };
 
     const batch = citations.slice(batchStart, batchStart + BATCH_SIZE);
 
@@ -824,11 +871,13 @@ export async function processWikitext(
 
     // Phase 1: Parallel — do all async API work for the batch
     const dataResults = await Promise.allSettled(
-      batch.map(async (citation) => {
+      batch.map(async (citation, batchIdx) => {
         try {
           return await processCitationData(citation, settings, mods, signal);
         } catch (e) {
-          console.error("[WikiCitationFixer] Error processing citation:", e);
+          const msg = (e as Error)?.message || String(e);
+          console.error("[WikiCitationExtension] Error processing citation:", e);
+          errors.push({ raw: citation.raw, message: msg, index: batchStart + batchIdx });
           stats.errors++;
           return null;
         }
@@ -903,7 +952,7 @@ export async function processWikitext(
 
   onProgress?.({ current: total, total, phase: 'done', message: 'Done' });
 
-  return { text: result, stats, aborted: false };
+  return { text: result, stats, aborted: false, errors };
 }
 
 interface CitationMeta {
@@ -1586,7 +1635,7 @@ function buildPanel(): { panel: HTMLDivElement; state: PanelState; show: (v: boo
     onclick: () => { panel.style.display = "none"; },
   }));
 
-  header.appendChild(Object.assign(document.createElement("h3"), { textContent: "WikiCitationFixer" }));
+  header.appendChild(Object.assign(document.createElement("h3"), { textContent: "WikiCitationExtension" }));
   header.appendChild(btnGroup);
   header.addEventListener("mousedown", startDrag);
 
@@ -1667,7 +1716,6 @@ export function buildStructuredDiffHtml(original: string, modified: string): str
   const origLines = original.split('\n');
   const modLines = modified.split('\n');
   const hd: string[] = [];
-  const oi = 0, mi = 0;
   hd.push('<table style="width:100%;border-collapse:collapse;font-family:monospace;font-size:12px;background:#1e1e1e;border:1px solid #333;border-radius:4px">');
   hd.push('<thead><tr><th style="width:48%;padding:4px 8px;background:#2a2a2a;border-bottom:1px solid #444;color:#999;text-align:left">Original</th><th style="width:4px;padding:0"></th><th style="width:48%;padding:4px 8px;background:#2a2a2a;border-bottom:1px solid #444;color:#999;text-align:left">Modified</th></tr></thead><tbody>');
   const maxLines = Math.max(origLines.length, modLines.length);
@@ -1688,14 +1736,31 @@ export function buildStructuredDiffHtml(original: string, modified: string): str
   return hd.join('\n');
 }
 
-export function showDiffPanel(fixed: string, diff: string, title: string, stats?: ProcessStats, apiBase?: string): void {
+export function showDiffPanel(fixed: string, diff: string, title: string, stats?: ProcessStats, apiBase?: string, errors?: ProcessingError[]): void {
   const { panel: p, show } = getOrCreatePanel();
   const desc = stats ? formatStatsSummary(stats) : describeChanges("", fixed, diff).html;
   const link = getEditUrl(title);
   const diffHtml = buildStructuredDiffHtml(diff.replace(/^--- original\n\+\+\+ modified\n/, '').split('\n').map(l => l.replace(/^[+-] /, '').replace(/^[+-]/, '')).join('\n'), fixed);
+
+  // Build error section
+  let errorHtml = '';
+  if (errors && errors.length > 0) {
+    const errItems = errors.map((e, i) => `
+      <div style="margin-bottom:8px;padding:8px;background:#3a1a1a;border:1px solid #d33;border-radius:4px">
+        <div style="color:#e88;font-weight:600;font-size:12px;margin-bottom:4px">Error #${i + 1}: ${escapeHtml(e.message)}</div>
+        <pre style="margin:0;font-size:11px;color:#d4d4d4;white-space:pre-wrap;word-break:break-all">${escapeHtml(e.raw.substring(0, 200))}${e.raw.length > 200 ? '...' : ''}</pre>
+      </div>`).join('');
+    errorHtml = `
+      <div style="margin-bottom:12px">
+        <div style="color:#e88;font-weight:600;font-size:13px;margin-bottom:6px">${errors.length} citation(s) could not be processed</div>
+        ${errItems}
+      </div>`;
+  }
+
   const saveBtn = apiBase ? `<button class="wikifix-btn wikifix-btn-primary" id="wikifix-save-api">${WAND_ICON} ${t("btnSaveChanges")}</button>` : '';
   p.querySelector(".wikifix-body")!.innerHTML = `
     <div class="wikifix-summary">${desc}</div>
+    ${errorHtml}
     <div style="margin-bottom:8px;max-height:400px;overflow-y:auto">${diffHtml}</div>
     <div class="wikifix-actions">
       ${saveBtn}
@@ -1759,12 +1824,12 @@ async function initialize(): Promise<void> {
     injectStyles();
     await addButton();
   } catch (e) {
-    console.error("[WikiCitationFixer] Initialization failed:", e);
+    console.error("[WikiCitationExtension] Initialization failed:", e);
   }
 }
 
 function boot(): void {
-  initialize().catch((e) => console.error("[WikiCitationFixer] Boot failed:", e));
+  initialize().catch((e) => console.error("[WikiCitationExtension] Boot failed:", e));
 }
 
 if (document.readyState === "loading") {

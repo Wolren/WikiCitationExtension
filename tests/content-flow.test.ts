@@ -34,14 +34,14 @@ const mockGetMessage = vi.fn((k: string) => {
     statsRefNames: "Ref names",
     errorProcessing: "Error: $1",
     copiedToClipboard: "Copied!",
-    panelTitle: "WikiCitationFixer — Citation diff panel",
+    panelTitle: "WikiCitationExtension — Citation diff panel",
     btnCycleDock: "Cycle dock corner",
     btnMinimize: "Minimize",
     btnClose: "Close",
   };
   return m[k] || k;
 });
-const mockBrowser = { storage: { local: { get: vi.fn(), set: vi.fn() } }, i18n: { getMessage: mockGetMessage } } as any;
+const mockBrowser = { storage: { local: { get: vi.fn(), set: vi.fn() } }, i18n: { getMessage: mockGetMessage }, runtime: { onMessage: { addListener: vi.fn() } } } as any;
 vi.stubGlobal("browser", mockBrowser);
 
 delete (globalThis as any).location;
@@ -171,6 +171,42 @@ describe("fixInEditor", () => {
     const note = document.getElementById("wikifix-note");
     expect(note).not.toBeNull();
     expect(note!.textContent).toContain("No citation changes");
+  });
+
+  it("processes only selected text and restores selection range", async () => {
+    const ta = document.getElementById("wpTextbox1") as HTMLTextAreaElement;
+    ta.value = "lead {{cite journal |title=Test |date=2024-01-15}} tail";
+    const citation = "{{cite journal |title=Test |date=2024-01-15}}";
+    const startIdx = ta.value.indexOf(citation);
+    const endIdx = startIdx + citation.length;
+    ta.selectionStart = startIdx;
+    ta.selectionEnd = endIdx;
+
+    await fixInEditor(defaultSettings);
+
+    // dates module normalizes 2024-01-15 → "15 January 2024"
+    const normalized = "{{cite journal |title=Test |date=15 January 2024}}";
+    expect(ta.value).toBe("lead " + normalized + " tail");
+
+    // Selection restored to span the replaced region
+    expect(ta.selectionStart).toBe(startIdx);
+    expect(ta.selectionEnd).toBe(startIdx + normalized.length);
+
+    // Selection mode shows notification (not diff button)
+    const note = document.getElementById("wikifix-note");
+    expect(note).not.toBeNull();
+    expect(note!.className).toContain("wikifix-success");
+    expect(note!.textContent).toContain("citation changed");
+  });
+
+  it("falls back to full-page when no selection exists", async () => {
+    const ta = document.getElementById("wpTextbox1") as HTMLTextAreaElement;
+    ta.value = "{{cite journal |title=Test |date=2024-01-15}}";
+    // No selection set — selectionStart === selectionEnd === 0
+    await fixInEditor(defaultSettings);
+
+    // Full page processed — date normalized
+    expect(ta.value).toBe("{{cite journal |title=Test |date=15 January 2024}}");
   });
 });
 

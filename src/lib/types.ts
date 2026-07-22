@@ -79,8 +79,19 @@ export interface ProcessStats {
   errors: number;
 }
 
+export interface ProcessingError {
+  /** The raw citation text that failed */
+  raw: string;
+  /** The error message */
+  message: string;
+  /** Optional citation index in the original text */
+  index?: number;
+}
+
 export interface ProcessResult {
   text: string;
   stats: ProcessStats;
   aborted: boolean;
+  /** Errors encountered during processing, indexed by citation */
+  errors: ProcessingError[];
 }

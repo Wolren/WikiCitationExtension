@@ -6,7 +6,6 @@ import {
   fetchEuropePMC, fetchEuropePMCByDoi, fetchEuropePMCByPmid,
   headUrl, checkWayback, saveWayback, fetchEditToken, editPage,
 } from "../src/lib/api";
-import { Cache } from "../src/lib/cache";
 
 const mockFetch = vi.fn();
 

@@ -101,6 +101,17 @@ export function getDisabledModules(wiki: WikiInfo): string[] {
   return disabled;
 }
 
+const STORAGE_KEY_PREFIX = "wikifix_settings";
+
+export function getSettingsKey(): string {
+  const wiki = detectWiki();
+  return `${STORAGE_KEY_PREFIX}_${wiki.variant}`;
+}
+
+export function getGlobalSettingsKey(): string {
+  return STORAGE_KEY_PREFIX;
+}
+
 export function getPageTitle(): string {
   const pathMatch = window.location.pathname.match(/\/(?:wiki|view|title)\/(.+)/);
   if (pathMatch) return decodeURIComponent(pathMatch[1]);

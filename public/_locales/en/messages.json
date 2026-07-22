@@ -1,7 +1,8 @@
 {
-  "appName": { "message": "WikiCitationFixer" },
-  "appSubtitle": { "message": "Self-contained citation fixing" },
+  "appName": { "message": "WikiCitationExtension" },
+  "appSubtitle": { "message": "Citation fixing for English Wikipedia" },
   "btnFixCitations": { "message": "Fix citations" },
+  "btnFixSelection": { "message": "Fix selection" },
   "btnRetry": { "message": "Retry" },
   "btnWorking": { "message": "Working..." },
   "btnCopyWikitext": { "message": "Copy wikitext" },
@@ -75,7 +76,7 @@
   "labelForceRefresh": { "message": "Force refresh" },
   "descForceRefresh": { "message": "(re-fetches all metadata, replaces existing fields)" },
 
-  "panelTitle": { "message": "WikiCitationFixer — Citation diff panel" },
+  "panelTitle": { "message": "WikiCitationExtension — Citation diff panel" },
   "btnCycleDock": { "message": "Cycle dock corner" },
   "btnMinimize": { "message": "Minimize" },
 
@@ -112,6 +113,8 @@
   "statsRefNames": { "message": "Ref names" },
 
   "errorProcessing": { "message": "Error: $1" },
+  "dependsModuleWarning": { "message": "Enable the \"$1\" module to use this option." },
+
   "copiedToClipboard": { "message": "Copied!" },
   "btnSaveChanges": { "message": "Save changes" },
   "saved": { "message": "Saved!" }

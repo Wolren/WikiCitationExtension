@@ -3,6 +3,10 @@ export interface EditorHandle {
   readonly element: HTMLElement;
   getText(): string | null;
   setText(text: string): boolean;
+  /** Returns selected text with absolute character offsets, or null if no selection or unsupported */
+  getSelection(): { text: string; start: number; end: number } | null;
+  /** Restore selection by absolute character offsets after setText(). Returns true if supported. */
+  setSelection(start: number, end: number): boolean;
 }
 
 interface Strategy {
@@ -12,6 +16,10 @@ interface Strategy {
   detect(): HTMLElement | null;
   read(el: HTMLElement): string | null;
   write(el: HTMLElement, text: string): boolean;
+  /** Returns selected text with absolute char offsets, or null if no selection / unsupported */
+  readSelection?(el: HTMLElement): { text: string; start: number; end: number } | null;
+  /** Restore selection by absolute char offsets. Returns true if supported. */
+  writeSelection?(el: HTMLElement, start: number, end: number): boolean;
 }
 
 // ── CodeMirror helpers ──────────────────────────────────────────────
@@ -37,6 +45,54 @@ function writeCodeMirror(cm: any, text: string): boolean {
   return false;
 }
 
+// ── CodeMirror selection helpers ─────────────────────────────────────
+function readCodeMirrorSelection(cm: any): { text: string; start: number; end: number } | null {
+  // CM5
+  if (typeof cm.getSelection === 'function') {
+    const text = cm.getSelection();
+    if (!text) return null;
+    if (typeof cm.indexFromPos === 'function') {
+      const fromPos = cm.getCursor('from');
+      const toPos = cm.getCursor('to');
+      const start = cm.indexFromPos(fromPos);
+      const end = cm.indexFromPos(toPos);
+      return { text, start, end };
+    }
+    return null;
+  }
+  // CM6
+  if (cm.state?.selection?.main) {
+    const { from, to } = cm.state.selection.main;
+    if (from === to) return null;
+    const text = typeof cm.state.sliceDoc === 'function'
+      ? cm.state.sliceDoc(from, to)
+      : cm.state.doc?.sliceString?.(from, to) || null;
+    if (!text) return null;
+    return { text, start: from, end: to };
+  }
+  return null;
+}
+
+function writeCodeMirrorSelection(cm: any, start: number, end: number): boolean {
+  // CM5
+  if (typeof cm.posFromIndex === 'function') {
+    const from = cm.posFromIndex(start);
+    const to = cm.posFromIndex(end);
+    cm.setSelection(from, to);
+    cm.focus();
+    return true;
+  }
+  // CM6
+  if (typeof cm.dispatch === 'function') {
+    try {
+      cm.dispatch({ selection: { anchor: start, head: end } });
+      cm.focus();
+      return true;
+    } catch { /* fall through */ }
+  }
+  return false;
+}
+
 // ── Textarea helpers ────────────────────────────────────────────────
 function findLargeTextarea(): HTMLTextAreaElement | null {
   let best: HTMLTextAreaElement | null = null;
@@ -56,6 +112,20 @@ function textareaRead(el: HTMLElement): string | null {
 function textareaWrite(el: HTMLElement, text: string): boolean {
   (el as HTMLTextAreaElement).value = text;
   el.dispatchEvent(new Event('input', { bubbles: true }));
+  return true;
+}
+
+function textareaReadSelection(el: HTMLElement): { text: string; start: number; end: number } | null {
+  const ta = el as HTMLTextAreaElement;
+  const { selectionStart: start, selectionEnd: end, value } = ta;
+  if (start === end) return null;
+  return { text: value.substring(start, end), start, end };
+}
+
+function textareaWriteSelection(el: HTMLElement, start: number, end: number): boolean {
+  const ta = el as HTMLTextAreaElement;
+  ta.setSelectionRange(start, end);
+  ta.focus();
   return true;
 }
 
@@ -159,6 +229,14 @@ const strategies: Strategy[] = [
       const cm = cmCache.get(el);
       return cm ? writeCodeMirror(cm, text) : false;
     },
+    readSelection: (el) => {
+      const cm = cmCache.get(el);
+      return cm ? readCodeMirrorSelection(cm) : null;
+    },
+    writeSelection: (el, start, end) => {
+      const cm = cmCache.get(el);
+      return cm ? writeCodeMirrorSelection(cm, start, end) : false;
+    },
   },
   {
     name: 'monaco',
@@ -177,6 +255,31 @@ const strategies: Strategy[] = [
     write: (el, text) => {
       const model = monacoCache.get(el);
       return model ? writeMonaco(model, text) : false;
+    },
+    readSelection: () => {
+      const m = (globalThis as any).monaco;
+      const editor = m?.editor?.getEditors?.()?.[0];
+      if (!editor) return null;
+      const sel = editor.getSelection();
+      if (!sel || sel.isEmpty()) return null;
+      const model = editor.getModel();
+      if (!model) return null;
+      const start = model.getOffsetAt(sel.getStartPosition());
+      const end = model.getOffsetAt(sel.getEndPosition());
+      const text = model.getValue().substring(start, end);
+      return { text, start, end };
+    },
+    writeSelection: (_, start, end) => {
+      const m = (globalThis as any).monaco;
+      const editor = m?.editor?.getEditors?.()?.[0];
+      if (!editor) return false;
+      const model = editor.getModel();
+      if (!model) return false;
+      const startPos = model.getPositionAt(start);
+      const endPos = model.getPositionAt(end);
+      editor.setSelection(new m.Selection(startPos.lineNumber, startPos.column, endPos.lineNumber, endPos.column));
+      editor.focus();
+      return true;
     },
   },
   {
@@ -203,6 +306,8 @@ const strategies: Strategy[] = [
       el.dispatchEvent(new Event('input', { bubbles: true }));
       return true;
     },
+    readSelection: (el) => textareaReadSelection(el),
+    writeSelection: (el, start, end) => textareaWriteSelection(el, start, end),
   },
   {
     name: 'classic-textarea',
@@ -210,6 +315,8 @@ const strategies: Strategy[] = [
     detect: () => document.getElementById('wpTextbox1') as HTMLTextAreaElement | null,
     read: textareaRead,
     write: textareaWrite,
+    readSelection: (el) => textareaReadSelection(el),
+    writeSelection: (el, start, end) => textareaWriteSelection(el, start, end),
   },
   {
     name: 've-source',
@@ -251,6 +358,8 @@ const strategies: Strategy[] = [
     detect: () => findLargeTextarea(),
     read: textareaRead,
     write: textareaWrite,
+    readSelection: (el) => textareaReadSelection(el),
+    writeSelection: (el, start, end) => textareaWriteSelection(el, start, end),
   },
   {
     name: 'contenteditable',
@@ -278,6 +387,8 @@ export function findEditor(): EditorHandle | null {
         element: el,
         getText: () => s.read(el),
         setText: (text: string) => s.write(el, text),
+        getSelection: () => s.readSelection?.(el) ?? null,
+        setSelection: (start, end) => s.writeSelection?.(el, start, end) ?? false,
       };
     }
   }

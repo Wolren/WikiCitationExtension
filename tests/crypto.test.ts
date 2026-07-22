@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Stub browser storage before importing crypto
 const mockStorage: Record<string, unknown> = {};
@@ -23,7 +23,7 @@ function bytesToHex(buf: Uint8Array): string {
 const mockCrypto = {
   subtle: {
     generateKey: vi.fn().mockResolvedValue("mock-key"),
-    exportKey: vi.fn(async (_: string, key: any) => {
+    exportKey: vi.fn(async (_: string, _key: any) => {
       keyExported = new Uint8Array(32);
       keyExported.fill(42);
       return keyExported.buffer;

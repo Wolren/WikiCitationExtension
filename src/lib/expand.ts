@@ -1,4 +1,5 @@
 import { fetchCrossref, fetchNCBISummary, fetchArXiv, fetchOpenLibrary, fetchDataCite, fetchUnpaywall, searchNCBIPmid, searchNCBIPmc, searchCrossrefByTitle } from "./api";
+import type { DataCiteResult } from "./api";
 import { normalizeDate } from "./dates";
 import { fixIsbn } from "./cleanup";
 import { extractDoiFromUrl } from "./wikitext";
