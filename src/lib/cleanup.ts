@@ -476,15 +476,24 @@ function detectLanguageIssues(p: Record<string, string>, changes: string[]): voi
 
 function fixVauthors(p: Record<string, string>, changes: string[]): void {
   if (p.vauthors) {
-    // Strip wikilinks: [[Ernst Kretschmer]] → Ernst Kretschmer
+    // Extract wikilinks: [[Ernst Kretschmer]] → extract link target, strip brackets
+    const wikiLinkMatch = p.vauthors.match(/\[\[([^\]]*)\]\]/);
     let clean = p.vauthors.replace(/\[\[([^\]]*)\]\]/g, "$1").trim();
     // Strip trailing dots from initials: "Smith J." → "Smith J"
     clean = clean.replace(/\.(?=[,\s]|$)/g, "");
     // Collapse spaced initials: "Smith J A" → "Smith JA"
     clean = clean.replace(/\b([A-Z])\s+(?=[A-Z](?:,|\s|$))/g, "$1");
-    if (clean !== p.vauthors) {
+    if (clean !== p.vauthors || wikiLinkMatch) {
       p.vauthors = clean;
       changes.push("fixed-vauthors-punctuation");
+    }
+    // Re-apply wikilink as author-link parameter (proper CS1 way)
+    if (wikiLinkMatch) {
+      const linkTarget = wikiLinkMatch[1].trim();
+      if (!p["author-link"] && linkTarget) {
+        p["author-link"] = linkTarget;
+        changes.push("vauthors-wikilink-to-author-link");
+      }
     }
   }
 }
