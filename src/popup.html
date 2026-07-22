@@ -67,6 +67,14 @@
     </details>
 
     <details class="section">
+      <summary><span data-i18n="sectionCacheRetry">Cache &amp; Retry</span></summary>
+      <div class="opt-row"><label for="cache_ttl_hours" data-i18n="labelCacheTtl">Cache TTL (hours):</label><input id="cache_ttl_hours" type="number" value="168" min="1" max="8760" class="num-input"></div>
+      <p class="field-desc" data-i18n="descCacheTtl">How long API responses are cached. DOIs/PMIDs are immutable — 168h (7 days) is safe.</p>
+      <div class="opt-row"><label for="max_retries" data-i18n="labelMaxRetries">Max retries:</label><input id="max_retries" type="number" value="2" min="0" max="10" class="num-input"></div>
+      <p class="field-desc" data-i18n="descMaxRetries">Retry on 429 rate limit or transient errors. 0 = no retries.</p>
+    </details>
+
+    <details class="section">
       <summary><span data-i18n="sectionApiKeys">API keys</span> <span class="hint" data-i18n="apiKeysHint">(optional, for higher rate limits)</span></summary>
       <div class="opt-row"><label for="crossref_email" data-i18n="labelCrossRefEmail">CrossRef email:</label><input id="crossref_email" type="text" data-i18n-placeholder="placeholderCrossRefEmail" placeholder="you@example.com" class="wide-input"></div>
       <p class="field-desc" data-i18n="descCrossRefEmail">Improves CrossRef polite pool access priority.</p>

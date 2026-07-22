@@ -123,6 +123,8 @@ const DEFAULTS: StorageSettings = {
   spacing_style: "",
   skip_org_authors: true,
   sfn_page_conflict: "rp",
+  cache_ttl_hours: 168,
+  max_retries: 2,
   crossref_email: "",
   ncbi_api_key: "",
   semantic_scholar_api_key: "",
@@ -196,6 +198,8 @@ async function collectSettings(): Promise<StorageSettings> {
     spacing_style: val("spacing_style"),
     skip_org_authors: checked("skip_org_authors"),
     sfn_page_conflict: val("sfn_page_conflict") as "rp" | "both" | "cite",
+    cache_ttl_hours: (() => { const n = parseInt(val("cache_ttl_hours"), 10); return isNaN(n) ? 168 : Math.max(1, n); })(),
+    max_retries: (() => { const n = parseInt(val("max_retries"), 10); return isNaN(n) ? 2 : Math.max(0, n); })(),
     crossref_email: val("crossref_email"),
     ncbi_api_key: val("ncbi_api_key"),
     semantic_scholar_api_key: val("semantic_scholar_api_key"),
@@ -224,6 +228,8 @@ function loadSettings(s: Partial<StorageSettings>): void {
   setVal("spacing_style", s.spacing_style || "");
   setChecked("skip_org_authors", !!s.skip_org_authors);
   setVal("sfn_page_conflict", s.sfn_page_conflict || "rp");
+  setVal("cache_ttl_hours", String(s.cache_ttl_hours ?? 168));
+  setVal("max_retries", String(s.max_retries ?? 2));
   setVal("crossref_email", s.crossref_email || "");
   setVal("ncbi_api_key", s.ncbi_api_key || "");
   setVal("semantic_scholar_api_key", s.semantic_scholar_api_key || "");
@@ -258,6 +264,7 @@ const SETTINGS_SCHEMA: Record<string, string> = {
   ids_to_fetch: 'string', force_archive_all: 'boolean', create_archive: 'boolean',
   strip_issn: 'boolean', rename_ref_names: 'boolean', skip_org_authors: 'boolean', spacing_style: 'string',
   sfn_page_conflict: 'string',
+  cache_ttl_hours: 'number', max_retries: 'number',
   crossref_email: 'string', ncbi_api_key: 'string', semantic_scholar_api_key: 'string',
 };
 
@@ -407,6 +414,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   watch("auto_update");
   watch("rename_ref_names");
   watch("spacing_style");
+  watch("cache_ttl_hours", "input");
+  watch("max_retries", "input");
   watch("crossref_email", "input");
   watch("ncbi_api_key", "input");
   watch("semantic_scholar_api_key", "input");

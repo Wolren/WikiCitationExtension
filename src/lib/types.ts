@@ -15,6 +15,8 @@ export interface StorageSettings {
   spacing_style?: string;
   citation_style?: "cs1";
   sfn_page_conflict?: "rp" | "both" | "cite";
+  cache_ttl_hours?: number;
+  max_retries?: number;
   crossref_email?: string;
   ncbi_api_key?: string;
   semantic_scholar_api_key?: string;

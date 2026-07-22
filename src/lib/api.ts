@@ -104,11 +104,11 @@ async function dedupedFetch<T>(url: string, options?: RequestInit, signal?: Abor
   const existing = inflightRequests.get(key);
   if (existing) return existing as Promise<T | null>;
   const promise = (async () => {
-    try {
-      const domain = new URL(url).hostname;
-      const limiter = getRateLimiter(domain);
-      return await limiter.add(async () => {
-        const mergedSignal = signal ? signal : undefined;
+    const domain = new URL(url).hostname;
+    const limiter = getRateLimiter(domain);
+    return await limiter.add(async () => {
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        const mergedSignal = signal || undefined;
         const fetchOpts: RequestInit = { ...options, signal: mergedSignal };
         try {
           const res = await globalThis.fetch(url, fetchOpts);
@@ -118,18 +118,34 @@ async function dedupedFetch<T>(url: string, options?: RequestInit, signal?: Abor
               const ms = parseInt(retryAfter) * 1000 || 60000;
               limiter.retryAfter(ms);
             }
+            if (attempt < maxRetries) {
+              const backoff = Math.min(1000 * Math.pow(2, attempt), 30000);
+              await new Promise(r => setTimeout(r, backoff));
+              continue;
+            }
             return null;
           }
-          if (!res.ok) return null;
+          if (!res.ok) {
+            if (attempt < maxRetries) {
+              const backoff = Math.min(1000 * Math.pow(2, attempt), 30000);
+              await new Promise(r => setTimeout(r, backoff));
+              continue;
+            }
+            return null;
+          }
           return await res.json() as T;
         } catch (e) {
           if (signal?.aborted) return null;
-          throw e;
+          if (attempt < maxRetries) {
+            const backoff = Math.min(1000 * Math.pow(2, attempt), 30000);
+            await new Promise(r => setTimeout(r, backoff));
+            continue;
+          }
+          return null;
         }
-      });
-    } catch {
+      }
       return null;
-    }
+    });
   })();
   inflightRequests.set(key, promise);
   try {
@@ -143,7 +159,13 @@ async function dedupedFetch<T>(url: string, options?: RequestInit, signal?: Abor
 
 // ── Persistent cache layer ───────────────────────────────────────────────────
 const apiCache = new PersistentCache<{ data: unknown; ttl: number }>();
-const CACHE_TTL_MS = 3600000; // 1 hour
+let cacheTtlMs = 3600000; // 1 hour default
+let maxRetries = 2; // default retry count
+
+export function setCacheConfig(cacheTtlHours: number, retries: number): void {
+  cacheTtlMs = cacheTtlHours * 3600000;
+  maxRetries = retries;
+}
 
 async function fetchJson<T>(url: string, options?: RequestInit, signal?: AbortSignal): Promise<T | null> {
   const cacheKey = options?.method === 'POST' ? null : `fetch:${url}`;
@@ -153,7 +175,7 @@ async function fetchJson<T>(url: string, options?: RequestInit, signal?: AbortSi
   }
   const result = await dedupedFetch<T>(url, options, signal);
   if (result && cacheKey) {
-    apiCache.set(cacheKey, { data: result, ttl: CACHE_TTL_MS }, CACHE_TTL_MS).catch(() => {});
+    apiCache.set(cacheKey, { data: result, ttl: cacheTtlMs }, cacheTtlMs).catch(() => {});
   }
   return result;
 }

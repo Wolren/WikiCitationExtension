@@ -240,8 +240,21 @@ function normalizeVancouverNames(p: Record<string, string>, changes: string[]): 
     if (!p[lastKey]) continue;
     const commaIdx = p[lastKey].indexOf(",");
     if (commaIdx === -1) continue;
+
+    const afterComma = p[lastKey].slice(commaIdx + 1).trim();
+    // Skip org names: check if the value after the comma looks like a given name
+    // or initials — not an organization name continuation.
+    // Match: "Ernst", "John", "JA", "J.A.", "J. A.", "E.J." (given names / initials)
+    // Reject: "American Psychiatric Association" (multi-word org continuation)
+    const words = afterComma.split(/\s+/);
+    const allWordsAreUppercase = words.every(w => /^[A-Z]\.?$/.test(w) || /^[A-Z]{1,4}$/.test(w.replace(/\./g, "")));
+    const isSingleGivenName = words.length === 1 && /^[A-Z][a-z]+$/.test(afterComma);
+    const looksLikeName = allWordsAreUppercase || isSingleGivenName
+      || (words.length <= 2 && words.every(w => /^[A-Z][a-z]*\.?$/.test(w)));
+    if (!looksLikeName) continue;
+
     const surname = p[lastKey].slice(0, commaIdx).trim();
-    const given = p[lastKey].slice(commaIdx + 1).trim();
+    const given = afterComma;
     if (surname && given && !p[firstKey]) {
       p[lastKey] = surname;
       p[firstKey] = given;

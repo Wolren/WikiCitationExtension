@@ -6,7 +6,7 @@ import { normalizeSpacing, sortParams } from "./lib/spacing";
 import { generateDiff } from "./lib/diff";
 import { convertToSfn, type SfnOptions } from "./lib/sfn";
 import { processAuthors } from "./lib/authors";
-import { setApiKeys, fetchCrossrefAuthors, searchNCBIPmid, searchNCBIPmc, fetchSemanticScholar, fetchOpenAlex, saveWayback, editPage } from "./lib/api";
+import { setApiKeys, fetchCrossrefAuthors, searchNCBIPmid, searchNCBIPmc, fetchSemanticScholar, fetchOpenAlex, saveWayback, editPage, setCacheConfig } from "./lib/api";
 import { decrypt, isEncrypted } from "./lib/crypto";
 import type { StorageSettings, Citation, ProgressCallback, ProcessResult, ProcessStats, ProcessingError } from "./lib/types";
 import { detectWiki, isEditPage, getPageTitle as getWikiPageTitle, probeApiUrl, getDisabledModules, getSettingsKey } from "./wiki-detector";
@@ -314,6 +314,10 @@ export async function processWikitext(
     ncbiKey: settings.ncbi_api_key || "",
     semanticScholarKey: settings.semantic_scholar_api_key || "",
   });
+  setCacheConfig(
+    settings.cache_ttl_hours || 168,
+    settings.max_retries ?? 2
+  );
 
   if (signal?.aborted) return { text, stats: createEmptyStats(), aborted: true, errors: [] };
 
