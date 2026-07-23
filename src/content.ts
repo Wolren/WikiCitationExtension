@@ -2,7 +2,7 @@ import { findCitations, parseParams, generateRefName, detectCitationType } from 
 import { expandCitation } from "./lib/expand";
 import { cleanupCitation, cleanupCitationBody, addArchiveUrls } from "./lib/cleanup";
 import { normalizeDate } from "./lib/dates";
-import { normalizeSpacing, sortParams } from "./lib/spacing";
+import { sortParams } from "./lib/spacing";
 import { generateDiff } from "./lib/diff";
 import { convertToSfn, type SfnOptions } from "./lib/sfn";
 import { processAuthors } from "./lib/authors";
@@ -21,6 +21,7 @@ import {
   hideProgress, showSuccessWithUndo, showDiffPanel, resetPanel,
 } from "./lib/panel";
 import { _abortController, _processing, _undoEditor, _undoOriginalText, setAbortController, setProcessing, setUndoState } from "./lib/state";
+import { DEFAULT_MODULES, SETTINGS_SCHEMA, validateSettings, DEFAULT_STORAGE_KEY, SENSITIVE_KEYS } from "./lib/settings";
 
 // ── Re-exports for test compatibility ──────────────────────────────
 
@@ -37,34 +38,16 @@ export {
   BUTTON_ID, PANEL_ID, NOTE_ID,
 } from "./lib/panel";
 
-// ── Shared module-level state ───────────────────────────────────────
-
 export { _abortController, _processing, _undoEditor, _undoOriginalText } from "./lib/state";
 let _isOffline = false;
 
-export const STORAGE_KEY = "wikifix_settings";
-export const DEFAULT_MODULES = "expand,cleanup,dates,ids,archive,dedup";
+export const STORAGE_KEY = DEFAULT_STORAGE_KEY;
 
 const DEFAULT_SETTINGS: StorageSettings = {
   modules: DEFAULT_MODULES,
   force: false,
   ref_names: false,
 };
-
-const SETTINGS_SCHEMA: Record<string, string> = {
-  modules: 'string', force: 'boolean', ref_names: 'boolean', auto_update: 'boolean',
-  author_style: 'string', refresh_authors: 'boolean', max_authors: 'number',
-  ids_to_fetch: 'string', force_archive_all: 'boolean', create_archive: 'boolean',
-  strip_issn: 'boolean', rename_ref_names: 'boolean', skip_org_authors: 'boolean', spacing_style: 'string',
-  crossref_email: 'string', ncbi_api_key: 'string', semantic_scholar_api_key: 'string',
-};
-
-function validateSettings(s: Record<string, unknown>): boolean {
-  for (const [key, type] of Object.entries(SETTINGS_SCHEMA)) {
-    if (s[key] !== undefined && typeof s[key] !== type) return false;
-  }
-  return true;
-}
 
 export async function getSettings(): Promise<StorageSettings> {
   try {
@@ -90,7 +73,7 @@ export async function getSettings(): Promise<StorageSettings> {
 
     const settings = stored as unknown as StorageSettings;
     // Decrypt sensitive fields
-    for (const key of ["crossref_email", "ncbi_api_key", "semantic_scholar_api_key"] as const) {
+    for (const key of SENSITIVE_KEYS) {
       const raw = settings[key] || "";
       if (isEncrypted(raw)) {
         const decrypted = await decrypt(raw);
@@ -106,10 +89,11 @@ export async function getSettings(): Promise<StorageSettings> {
 // Respond to variant queries from popup (routed through background)
 if (typeof browser !== "undefined") {
   try {
-    browser.runtime.onMessage.addListener((message: any) => {
-      if (message.type === "getWikiVariant") {
+    browser.runtime.onMessage.addListener((message: unknown) => {
+      if ((message as Record<string, unknown>)?.type === "getWikiVariant") {
         return Promise.resolve({ variant: detectWiki().variant });
       }
+      return undefined;
     });
   } catch { /* not in extension context */ }
 }
@@ -481,11 +465,6 @@ async function processCitationData(
     expanded: false, cleaned: false, archived: false,
     enrichedIds: false, datesFixed: false, authorsProcessed: false, sortApplied: false,
   };
-
-  if (settings.spacing_style) {
-    params = normalizeSpacing(params);
-    changed = true;
-  }
 
   if (moduleEnabled(mods, "expand") && !_isOffline) {
     if (signal?.aborted) return null;

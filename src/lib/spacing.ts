@@ -43,19 +43,3 @@ export function sortParams(params: Record<string, string>): Record<string, strin
   }
   return result;
 }
-
-export function formatCitationBody(
-  params: Record<string, string>,
-  style: string = "standard"
-): string {
-  const entries = Object.entries(params);
-  if (entries.length === 0) return "";
-
-  if (style === "compact") {
-    return entries.map(([k, v]) => `|${k}=${v}`).join(" ");
-  }
-  if (style === "wide") {
-    return entries.map(([k, v]) => ` | ${k} = ${v}`).join("").trimStart();
-  }
-  return entries.map(([k, v]) => `| ${k} = ${v}`).join(" ");
-}

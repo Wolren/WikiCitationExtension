@@ -133,7 +133,7 @@ const RUN_ONLINE = process.env.INTEGRATION_NETWORK === "true";
 // ── Article cache ────────────────────────────────────────────────────
 
 describe("article cache", () => {
-  const cache: Map<string, string> = new Map();
+  const cache = new Map<string, string>();
 
   beforeAll(async () => {
     await Promise.all(
@@ -230,7 +230,7 @@ describe("article cache", () => {
 // ── Cross-article structural edge cases ──────────────────────────────
 
 describe("structural edge cases (all articles × all offline configs)", () => {
-  const articleTexts: Map<string, string> = new Map();
+  const articleTexts = new Map<string, string>();
 
   beforeAll(async () => {
     for (const def of ARTICLES) {
@@ -266,7 +266,7 @@ describe("structural edge cases (all articles × all offline configs)", () => {
 // ── Fixture pattern verification ─────────────────────────────────────
 
 describe("fixture patterns in article context", () => {
-  const articleTexts: Map<string, string> = new Map();
+  const articleTexts = new Map<string, string>();
 
   beforeAll(async () => {
     for (const def of ARTICLES) {
@@ -627,7 +627,7 @@ describe("fixture patterns in article context", () => {
       for (const n of fx.noChecks) expect(standalone.text).not.toContain(n);
 
       // Verify in each article context
-      for (const [_file, articleText] of articleTexts) {
+      for (const [, articleText] of articleTexts) {
         const injected = fx.input + "\n\n" + articleText;
         const result = await processWikitext(injected, baseSettings);
         for (const c of fx.checks) expect(result.text).toContain(c);

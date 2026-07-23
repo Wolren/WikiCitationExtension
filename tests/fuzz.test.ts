@@ -2,9 +2,6 @@ import { describe, it, expect, beforeAll, afterEach } from "vitest";
 import { processWikitext } from "../src/content";
 import { findCitations, parseParams } from "../src/lib/wikitext";
 import { cleanupCitation, cleanupCitationBody } from "../src/lib/cleanup";
-import { convertToSfn } from "../src/lib/sfn";
-import { normalizeDate } from "../src/lib/dates";
-import { encrypt, decrypt } from "../src/lib/crypto";
 import { resetApiProbeCache } from "../src/wiki-detector";
 import type { StorageSettings } from "../src/lib/types";
 
@@ -70,9 +67,6 @@ function hasValidTemplateFormat(text: string): boolean {
   return true;
 }
 
-function _countCitations(text: string): number {
-  return findCitations(text).length;
-}
 
 // ── Fuzz generators ─────────────────────────────────────────────────
 

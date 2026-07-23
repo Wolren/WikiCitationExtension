@@ -1,9 +1,9 @@
 import { escapeRe } from "./wikitext";
 
-export type AuthorFetchSource = {
+export interface AuthorFetchSource {
   name: string;
   fetch: (doi: string) => Promise<[string, string][] | null>;
-};
+}
 
 const DIACRITICS_MAP: Record<string, string> = {
   à: "a", á: "a", â: "a", ã: "a", ä: "a", å: "a",

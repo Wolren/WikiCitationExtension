@@ -17,6 +17,7 @@ export class Cache<T = unknown> {
   }
 
   set(key: string, value: T): void {
+    this.evictStale();
     this.store.set(key, { value, expires: Date.now() + this.ttl });
   }
 
@@ -49,21 +50,21 @@ export class PersistentCache<T = unknown> {
   private db: IDBDatabase | null = null;
   private ready: Promise<void>;
 
-  constructor(dbName = 'wikifix-cache', storeName = 'api-cache') {
+  constructor(dbName = "wikifix-cache", storeName = "api-cache") {
     this.dbName = dbName;
     this.storeName = storeName;
     this.ready = this.init();
   }
 
   private init(): Promise<void> {
-    return new Promise((resolve, _reject) => {
-      if (typeof indexedDB === 'undefined') { resolve(); return; }
+    return new Promise((resolve) => {
+      if (typeof indexedDB === "undefined") { resolve(); return; }
       const request = indexedDB.open(this.dbName, 1);
       request.onupgradeneeded = () => {
         const db = request.result;
         if (!db.objectStoreNames.contains(this.storeName)) {
-          const store = db.createObjectStore(this.storeName, { keyPath: 'key' });
-          store.createIndex('expires', 'expires', { unique: false });
+          const store = db.createObjectStore(this.storeName, { keyPath: "key" });
+          store.createIndex("expires", "expires", { unique: false });
         }
       };
       request.onsuccess = () => {
@@ -76,17 +77,18 @@ export class PersistentCache<T = unknown> {
 
   async get(key: string): Promise<T | undefined> {
     await this.ready;
-    if (!this.db) return undefined;
+    const db = this.db;
+    if (!db) return undefined;
     return new Promise((resolve) => {
       try {
-        const tx = this.db!.transaction(this.storeName, 'readonly');
+        const tx = db.transaction(this.storeName, "readonly");
         const store = tx.objectStore(this.storeName);
         const request = store.get(key);
         request.onsuccess = () => {
           const entry = request.result as IndexedDbEntry<T> | undefined;
           if (!entry) { resolve(undefined); return; }
           if (Date.now() > entry.expires) {
-            this.delete(key).catch(() => {});
+            this.delete(key).catch(() => { /* stale entry cleanup is non-fatal */ });
             resolve(undefined);
             return;
           }
@@ -99,10 +101,11 @@ export class PersistentCache<T = unknown> {
 
   async set(key: string, value: T, ttlMs = 3600000): Promise<void> {
     await this.ready;
-    if (!this.db) return;
+    const db = this.db;
+    if (!db) return;
     return new Promise((resolve) => {
       try {
-        const tx = this.db!.transaction(this.storeName, 'readwrite');
+        const tx = db.transaction(this.storeName, "readwrite");
         tx.objectStore(this.storeName).put({ key, value, expires: Date.now() + ttlMs } as IndexedDbEntry<T>);
         tx.oncomplete = () => resolve();
         tx.onerror = () => resolve();
@@ -112,10 +115,11 @@ export class PersistentCache<T = unknown> {
 
   async delete(key: string): Promise<void> {
     await this.ready;
-    if (!this.db) return;
+    const db = this.db;
+    if (!db) return;
     return new Promise((resolve) => {
       try {
-        const tx = this.db!.transaction(this.storeName, 'readwrite');
+        const tx = db.transaction(this.storeName, "readwrite");
         tx.objectStore(this.storeName).delete(key);
         tx.oncomplete = () => resolve();
       } catch { resolve(); }
@@ -124,10 +128,11 @@ export class PersistentCache<T = unknown> {
 
   async clear(): Promise<void> {
     await this.ready;
-    if (!this.db) return;
+    const db = this.db;
+    if (!db) return;
     return new Promise((resolve) => {
       try {
-        const tx = this.db!.transaction(this.storeName, 'readwrite');
+        const tx = db.transaction(this.storeName, "readwrite");
         tx.objectStore(this.storeName).clear();
         tx.oncomplete = () => resolve();
       } catch { resolve(); }

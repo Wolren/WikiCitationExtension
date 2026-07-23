@@ -50,6 +50,7 @@
 
   "sectionMoreOptions": { "message": "More options" },
   "labelStripIssn": { "message": "Strip ISSN when DOI present" },
+  "labelUpgradeHttps": { "message": "Upgrade HTTP to HTTPS" },
   "labelFetchIds": { "message": "Fetch IDs" },
   "labelSfnPageConflict": { "message": "SFN page conflict:" },
   "optionSfnPageRp": { "message": "prefer rp (default)" },

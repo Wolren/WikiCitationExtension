@@ -276,37 +276,30 @@ function enforcePeriodicalRules(p: Record<string, string>, tt: string | undefine
 
   const periodicalFields = ["journal", "magazine", "newspaper"] as const;
 
+  // Data-driven periodical conflict resolution
+  const PERIODICAL_RULES: Record<string, {
+    remove: readonly string[];
+    field?: string;
+    change?: string;
+  }> = {
+    "cite web": { remove: ["journal", "magazine", "newspaper"] as const, field: "website", change: "work-to-website" },
+    "cite journal": { remove: ["magazine", "newspaper"] as const, field: "journal", change: "work-to-journal" },
+    "cite news": { remove: ["journal", "magazine"] as const, field: "newspaper", change: "work-to-newspaper" },
+    "cite magazine": { remove: ["journal", "newspaper"] as const, field: "magazine", change: "work-to-magazine" },
+  };
+
   let conflict = false;
-  if (tt === "cite web") {
-    for (const f of periodicalFields) {
+  const rule = tt ? PERIODICAL_RULES[tt] : undefined;
+  if (rule) {
+    for (const f of rule.remove) {
       if (p[f]) { delete p[f]; conflict = true; }
     }
     if (p.work) {
-      if (!p.website) { p.website = p.work; changes.push("work-to-website"); }
-      delete p.work; conflict = true;
-    }
-  } else if (tt === "cite journal") {
-    if (p.magazine) { delete p.magazine; conflict = true; }
-    if (p.newspaper) { delete p.newspaper; conflict = true; }
-    if (p.work) {
-      if (!p.journal) { p.journal = p.work; changes.push("work-to-journal"); }
-      delete p.work; conflict = true;
-    }
-  } else if (tt === "cite news") {
-    if (p.journal) { delete p.journal; conflict = true; }
-    if (p.magazine) { delete p.magazine; conflict = true; }
-    if (p.work) {
-      if (!p.newspaper) { p.newspaper = p.work; changes.push("work-to-newspaper"); }
-      delete p.work; conflict = true;
-    }
-  } else if (tt === "cite magazine") {
-    if (p.journal) { delete p.journal; conflict = true; }
-    if (p.newspaper) { delete p.newspaper; conflict = true; }
-    if (p.work) {
-      if (!p.magazine) { p.magazine = p.work; changes.push("work-to-magazine"); }
+      if (rule.field && !p[rule.field]) { p[rule.field] = p.work; changes.push(rule.change ?? ""); }
       delete p.work; conflict = true;
     }
   }
+
   if (conflict) changes.push("periodical-conflict");
 
   if (tt === "citation" && p.work && p.journal && p.work === p.journal) {
@@ -362,16 +355,21 @@ const HTTPS_UPGRADE_DOMAINS = [
   "wikidata.org",
   "commons.wikimedia.org",
   "doi.org",
+  "dx.doi.org",
   "pubmed.ncbi.nlm.nih.gov",
   "ncbi.nlm.nih.gov",
 ];
 
-function fixUrlScheme(p: Record<string, string>, changes: string[]): void {
+export function fixUrlScheme(p: Record<string, string>, changes: string[]): void {
   for (const k of URL_FIELDS) {
     if (!p[k]) continue;
     if (!/^https?:\/\//i.test(p[k])) {
-      p[k] = "https://" + p[k];
-      changes.push("fixed-url-scheme-" + k);
+      // No http/https scheme — only prepend if there's no scheme at all,
+      // not for ftp://, mailto:, etc.
+      if (!/^\w+:\/\//.test(p[k])) {
+        p[k] = "https://" + p[k];
+        changes.push("fixed-url-scheme-" + k);
+      }
     } else {
       // Upgrade known HTTPS-capable domains from http:// to https://
       for (const domain of HTTPS_UPGRADE_DOMAINS) {
@@ -575,7 +573,6 @@ export function cleanupCitation(
   removeConflictingParams(p, changes);
   flagExternalLinks(p, changes);
   fixNbsp(p, changes);
-  fixUrlScheme(p, changes);
   fixUrlSpaces(p, changes);
   checkAuthorNames(p, changes);
   validateDateRanges(p, changes);

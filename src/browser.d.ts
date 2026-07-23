@@ -16,7 +16,7 @@ declare let browser: {
     sendMessage(message: unknown): Promise<unknown>;
   };
   tabs: {
-    query(queryInfo: { active?: boolean; currentWindow?: boolean }): Promise<Array<{ id?: number }>>;
+    query(queryInfo: { active?: boolean; currentWindow?: boolean }): Promise<{ id?: number }[]>;
     sendMessage(tabId: number, message: unknown): Promise<unknown>;
   };
 };

@@ -287,13 +287,6 @@ const FIXTURE_REF_NAME: FixtureDef = {
   checks: ["Smith2024"],
 };
 
-const _FIXTURE_REF_NAME_PRESERVED: FixtureDef = {
-  name: "existing ref name preserved",
-  input: '<ref name="Smith">{{cite journal |last=Smith |year=2024 |title=Test |doi=10.1000/ct6}}</ref>',
-  settings: { ref_names: true, auto_update: true } as Partial<StorageSettings>,
-  checks: ['name="Smith"'],
-};
-
 const FIXTURE_SEE_ALSO: FixtureDef = {
   name: "see-also not wrapped",
   input: "==See also==\n* {{cite journal |last=King |year=2021 |title=Review |doi=10.1000/ct99}}",

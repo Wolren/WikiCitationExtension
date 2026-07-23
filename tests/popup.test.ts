@@ -139,6 +139,7 @@ beforeEach(() => {
       <div><select id="spacing_style"><option value="">Off</option><option value="wide">Wide</option></select></div>
       <div><select id="sfn_page_conflict"><option value="rp">prefer rp</option><option value="both">both</option><option value="cite">cite</option></select></div>
       <div><input id="strip_issn" type="checkbox"></div>
+      <div><input id="upgrade_https" type="checkbox" checked></div>
       <div class="fetch-ids">
         <label class="chip-item"><input type="checkbox" data-id="issn"> ISSN</label>
         <label class="chip-item"><input type="checkbox" data-id="pmid" checked> PMID</label>
@@ -152,6 +153,8 @@ beforeEach(() => {
       <div><input id="auto_update" type="checkbox"></div>
       <div><input id="rename_ref_names" type="checkbox"></div>
       <div><input id="skip_org_authors" type="checkbox"></div>
+      <div><input id="cache_ttl_hours" type="number" value="168"></div>
+      <div><input id="max_retries" type="number" value="2"></div>
       <div><input id="force" type="checkbox"></div>
       <button id="resetBtn" class="btn-reset">Reset defaults</button>
     </div>`;

@@ -1,9 +1,8 @@
 import { t } from "./i18n";
 import { CSS, WAND_ICON, WAND_ICON_DATAURI, escapeHtml, formatStatsSummary, describeChanges } from "./format";
-import { findEditor, waitForEditor, isVisualEditorActive, findVeSourceTab, type EditorHandle } from "../editor-adapter";
+import { findEditor, getMediaWiki } from "../editor-adapter";
 import { editPage } from "./api";
-import { generateDiff } from "./diff";
-import { detectWiki, isEditPage, getPageTitle as getWikiPageTitle, probeApiUrl } from "../wiki-detector";
+import { isEditPage } from "../wiki-detector";
 import type { ProcessStats, ProcessingError } from "./types";
 
 export const BUTTON_ID = "wikifix-btn";
@@ -142,12 +141,13 @@ export function addButton(): void {
   if (document.getElementById(BUTTON_ID)) return;
   if (!isEditPage()) return;
 
-  const mw = (globalThis as any).mw;
+  const mw = getMediaWiki();
 
   // Register hooks for later relocation
   if (mw?.hook) {
     try {
-      mw.hook("wikiEditor.toolbarReady").add(function ($textarea: any) {
+      mw.hook("wikiEditor.toolbarReady").add(function (...args: unknown[]) {
+        const $textarea = args[0] as any;
         if (typeof $textarea?.wikiEditor === "function") {
           try {
             $textarea.wikiEditor("addToToolbar", {
@@ -173,7 +173,8 @@ export function addButton(): void {
     } catch { /* ignore */ }
 
     try {
-      mw.hook("ext.CodeMirror.ready").add(function (cm: any) {
+      mw.hook("ext.CodeMirror.ready").add(function (...args: unknown[]) {
+        const cm = args[0] as any;
         const dom = cm?.dom || document.querySelector(".cm-editor");
         if (dom) {
           const old = document.getElementById(BUTTON_ID);
@@ -263,7 +264,7 @@ export function addButton(): void {
 
     // Try MediaWiki portlet link API (works on all skins, uses MW's own toolbar)
     try {
-      const mwUtil = (globalThis as any).mw?.util;
+      const mwUtil = getMediaWiki()?.util;
       if (typeof mwUtil?.addPortletLink === "function") {
         const link = mwUtil.addPortletLink("p-cactions", "#", t("btnFixCitations"), "wikifix-btn");
         if (link) {
@@ -296,6 +297,10 @@ export function addButton(): void {
     if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "Shift"].includes(e.key)) {
       onSelectionChange();
     }
+  });
+  // Clean up on page navigation so listeners don't accumulate
+  window.addEventListener("beforeunload", () => {
+    document.removeEventListener("mouseup", onSelectionChange);
   });
 }
 
@@ -534,7 +539,8 @@ function buildPanel(): { panel: HTMLDivElement; state: PanelState; show: (v: boo
 
   function hideDockIndicators() {
     DOCK_CORNERS.forEach(c => {
-      document.getElementById(`${PANEL_ID}-dock-${c}`)!.classList.remove("active");
+      const dockEl = document.getElementById(`${PANEL_ID}-dock-${c}`);
+      if (dockEl) dockEl.classList.remove("active");
     });
   }
 
@@ -721,7 +727,7 @@ import { getEditUrl } from "../content";
 
 export function showDiffPanel(fixed: string, diff: string, title: string, stats?: ProcessStats, apiBase?: string, errors?: ProcessingError[]): void {
   const { panel: p, show } = getOrCreatePanel();
-  const desc = stats ? formatStatsSummary(stats) : describeChanges("", fixed, diff).html;
+  const desc = stats ? formatStatsSummary(stats) : describeChanges("", fixed).html;
   const link = getEditUrl(title);
   const diffHtml = buildStructuredDiffHtml(diff.replace(/^--- original\n\+\+\+ modified\n/, '').split('\n').map(l => l.replace(/^[+-] /, '').replace(/^[+-]/, '')).join('\n'), fixed);
 
@@ -741,7 +747,8 @@ export function showDiffPanel(fixed: string, diff: string, title: string, stats?
   }
 
   const saveBtn = apiBase ? `<button class="wikifix-btn wikifix-btn-primary" id="wikifix-save-api">${WAND_ICON} ${t("btnSaveChanges")}</button>` : '';
-  p.querySelector(".wikifix-body")!.innerHTML = `
+  const body = p.querySelector(".wikifix-body");
+  if (body) body.innerHTML = `
     <div class="wikifix-summary">${desc}</div>
     ${errorHtml}
     <div style="margin-bottom:8px;max-height:400px;overflow-y:auto">${diffHtml}</div>

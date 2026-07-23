@@ -1,8 +1,9 @@
 import type { StorageSettings } from "./lib/types";
 import { encrypt, decrypt, isEncrypted } from "./lib/crypto";
+import { SETTINGS_SCHEMA, validateSettings, DEFAULT_MODULES, DEFAULT_STORAGE_KEY, SENSITIVE_KEYS } from "./lib/settings";
 
 // Storage key is determined per wiki variant at init time
-let _storageKey = "wikifix_settings";
+let _storageKey = DEFAULT_STORAGE_KEY;
 let _wikiVariant = "";
 
 async function resolveStorageKey(): Promise<string> {
@@ -108,7 +109,7 @@ function updateDependentVisuals(): void {
 }
 
 const DEFAULTS: StorageSettings = {
-  modules: "expand,cleanup,dates,ids,archive,dedup",
+  modules: DEFAULT_MODULES,
   force: false,
   ref_names: false,
   auto_update: false,
@@ -119,6 +120,7 @@ const DEFAULTS: StorageSettings = {
   force_archive_all: false,
   create_archive: false,
   strip_issn: false,
+  upgrade_https: true,
   rename_ref_names: false,
   spacing_style: "",
   skip_org_authors: true,
@@ -131,7 +133,6 @@ const DEFAULTS: StorageSettings = {
 };
 
 // ── i18n helpers ────────────────────────────────────────────────────
-const SENSITIVE_KEYS = new Set(["crossref_email", "ncbi_api_key", "semantic_scholar_api_key"]);
 
 function localizeHtml(): void {
   for (const el of document.querySelectorAll("[data-i18n]")) {
@@ -194,6 +195,7 @@ async function collectSettings(): Promise<StorageSettings> {
     force_archive_all: checked("force_archive_all"),
     create_archive: checked("create_archive"),
     strip_issn: checked("strip_issn"),
+    upgrade_https: checked("upgrade_https"),
     rename_ref_names: checked("rename_ref_names"),
     spacing_style: val("spacing_style"),
     skip_org_authors: checked("skip_org_authors"),
@@ -224,6 +226,7 @@ function loadSettings(s: Partial<StorageSettings>): void {
   setChecked("force_archive_all", !!s.force_archive_all);
   setChecked("create_archive", !!s.create_archive);
   setChecked("strip_issn", !!s.strip_issn);
+  setChecked("upgrade_https", s.upgrade_https !== false);
   setChecked("rename_ref_names", !!s.rename_ref_names);
   setVal("spacing_style", s.spacing_style || "");
   setChecked("skip_org_authors", !!s.skip_org_authors);
@@ -256,23 +259,6 @@ async function decryptSettingsForDisplay(s: Partial<StorageSettings>): Promise<P
     }
   }
   return result;
-}
-
-const SETTINGS_SCHEMA: Record<string, string> = {
-  modules: 'string', force: 'boolean', ref_names: 'boolean', auto_update: 'boolean',
-  author_style: 'string', refresh_authors: 'boolean', max_authors: 'number',
-  ids_to_fetch: 'string', force_archive_all: 'boolean', create_archive: 'boolean',
-  strip_issn: 'boolean', rename_ref_names: 'boolean', skip_org_authors: 'boolean', spacing_style: 'string',
-  sfn_page_conflict: 'string',
-  cache_ttl_hours: 'number', max_retries: 'number',
-  crossref_email: 'string', ncbi_api_key: 'string', semantic_scholar_api_key: 'string',
-};
-
-function validateSettings(s: Record<string, unknown>): boolean {
-  for (const [key, type] of Object.entries(SETTINGS_SCHEMA)) {
-    if (s[key] !== undefined && typeof s[key] !== type) return false;
-  }
-  return true;
 }
 
 let _saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -427,12 +413,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   watchDependent("force_archive_all", "archive");
   watchDependent("create_archive", "archive");
   watchDependent("strip_issn", "cleanup");
+  watchDependent("upgrade_https", "cleanup");
   watchDependent("sfn_page_conflict", "sfn");
 
   watchModules();
   watchIdCheckboxes();
 
-  document.getElementById("resetBtn")!.addEventListener("click", async () => {
+  const resetBtn = document.getElementById("resetBtn");
+  if (resetBtn) resetBtn.addEventListener("click", async () => {
     loadSettings(DEFAULTS);
     await save();
   });

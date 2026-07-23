@@ -58,7 +58,7 @@ export function detectWiki(): WikiInfo {
   const isMW =
     document.documentElement.classList.contains('mediawiki') ||
     !!document.getElementById('mw-content-text') ||
-    typeof (globalThis as any).mw === 'object';
+    typeof (globalThis as Record<string, unknown>).mw === 'object';
 
   return {
     isMediaWiki: isMW,

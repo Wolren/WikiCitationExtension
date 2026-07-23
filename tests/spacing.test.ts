@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { normalizeSpacing, sortParams, formatCitationBody } from "../src/lib/spacing";
+import { normalizeSpacing, sortParams } from "../src/lib/spacing";
+import { formatBody as formatCitationBody } from "../src/lib/format";
 
 describe("normalizeSpacing", () => {
   it("trims whitespace from values", () => {

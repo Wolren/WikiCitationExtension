@@ -151,7 +151,7 @@ export async function expandCitation(
     const dataCiteData = dataCiteResult.status === 'fulfilled' ? dataCiteResult.value : null;
     const data = crossrefData || dataCiteData;
     if (data) {
-      const extra = data as any;
+      const extra = data as Record<string, any>;
       if (extra.title?.[0] && fill("title")) { params.title = extra.title[0]; changes.push("expanded-title"); }
       if (extra["container-title"]?.[0] && fill("journal")) { params.journal = cleanJournal(extra["container-title"][0]); changes.push("expanded-journal"); }
       const dp = extra["published-print"]?.["date-parts"]?.[0] ?? extra["published-online"]?.["date-parts"]?.[0]
@@ -213,7 +213,7 @@ export async function expandCitation(
     if (data) {
       if (data.title && fill("title")) { params.title = data.title; changes.push("expanded-title"); }
       if (data.source && fill("journal")) { params.journal = cleanJournal(data.source); changes.push("expanded-journal"); }
-      const ext = data as any;
+      const ext = data as Record<string, any>;
       if (ext.pubdate && fill("date")) { params.date = normalizeDate(ext.pubdate); changes.push("expanded-date"); }
       if (ext.elocationid && fill("pages")) { params.pages = ext.elocationid; changes.push("expanded-pages"); }
       if (data.lang && !params.language && wikiLang !== "en") {

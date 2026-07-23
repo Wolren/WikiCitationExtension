@@ -1,3 +1,102 @@
+/** Minimal CodeMirror 5 instance shape */
+interface CodeMirror5 {
+  getValue(): string;
+  setValue(text: string): void;
+  getSelection(): string;
+  setSelection(from: { line: number; ch: number }, to: { line: number; ch: number }): void;
+  getCursor(which: "from" | "to"): { line: number; ch: number };
+  indexFromPos(pos: { line: number; ch: number }): number;
+  posFromIndex(index: number): { line: number; ch: number };
+  focus(): void;
+  dom: HTMLElement;
+}
+
+/** Minimal CodeMirror 6 state shape used in dispatch */
+interface CodeMirror6State {
+  doc: { length: number; toString(): string; sliceString(from: number, to: number): string };
+  selection: { main: { from: number; to: number; empty: boolean } };
+}
+
+/** Minimal CodeMirror 6 instance shape */
+interface CodeMirror6 {
+  dispatch(changes: Record<string, unknown>): void;
+  focus(): void;
+  state: CodeMirror6State;
+  dom: HTMLElement;
+}
+
+/** Union of CM5 and CM6 minimal shapes */
+type CodeMirrorInstance = CodeMirror5 | CodeMirror6;
+
+/** Minimal Monaco model shape */
+interface MonacoModel {
+  getValue(): string;
+  setValue(text: string): void;
+  getOffsetAt(pos: { lineNumber: number; column: number }): number;
+  getPositionAt(offset: number): { lineNumber: number; column: number };
+}
+
+/** Minimal Monaco editor shape */
+interface MonacoEditor {
+  getSelection(): { isEmpty(): boolean; getStartPosition(): { lineNumber: number; column: number }; getEndPosition(): { lineNumber: number; column: number } };
+  getModel(): MonacoModel | null;
+  setSelection(selection: unknown): void;
+  focus(): void;
+}
+
+/** Minimal Monaco global shape */
+interface MonacoGlobal {
+  editor: {
+    getModels(): MonacoModel[];
+    getEditors(): MonacoEditor[];
+  };
+  Selection: new (startLine: number, startCol: number, endLine: number, endCol: number) => unknown;
+}
+
+/** Minimal CKEditor instance shape */
+interface CKEditorInstance {
+  mode: string;
+  setData(text: string): void;
+}
+
+/** Minimal CKEditor global shape */
+interface CKEditorGlobal {
+  instances: Record<string, CKEditorInstance>;
+}
+
+/** Minimal MediaWiki global shape */
+interface MediaWikiGlobal {
+  codemirror?: {
+    editors?: CodeMirrorInstance[];
+    editor?: CodeMirrorInstance;
+  };
+  hook(name: string): { add(fn: (...args: unknown[]) => void): void };
+  util?: Record<string, unknown>;
+}
+
+/** Browser-independent access to globals injected by wiki software */
+export function getMediaWiki(): MediaWikiGlobal | null {
+  return (globalThis as Record<string, unknown>).mw as MediaWikiGlobal | null;
+}
+
+function getMonacoGlobal(): MonacoGlobal | null {
+  return (globalThis as Record<string, unknown>).monaco as MonacoGlobal | null;
+}
+
+function getCKEditorGlobal(): CKEditorGlobal | null {
+  return (globalThis as Record<string, unknown>).CKEDITOR as CKEditorGlobal | null;
+}
+
+// ── CodeMirror type guards ───────────────────────────────────────────
+
+function isCodeMirror5(cm: CodeMirrorInstance): cm is CodeMirror5 {
+  return typeof (cm as CodeMirror5).getValue === "function";
+}
+
+function isCodeMirror6(cm: CodeMirrorInstance): cm is CodeMirror6 {
+  return typeof (cm as CodeMirror6).dispatch === "function";
+}
+
 export interface EditorHandle {
   readonly type: string;
   readonly element: HTMLElement;
@@ -23,22 +122,22 @@ interface Strategy {
 }
 
 // ── CodeMirror helpers ──────────────────────────────────────────────
-const cmCache = new WeakMap<HTMLElement, any>();
+const cmCache = new WeakMap<HTMLElement, CodeMirrorInstance>();
 
-function getCodeMirror(): any {
-  const mw = (globalThis as any).mw;
+function getCodeMirror(): CodeMirrorInstance | null {
+  const mw = getMediaWiki();
   return mw?.codemirror?.editors?.[0] || mw?.codemirror?.editor || null;
 }
 
-function readCodeMirror(cm: any): string | null {
-  if (typeof cm.getValue === 'function') return cm.getValue();
-  if (cm.state?.doc) return cm.state.doc.toString();
+function readCodeMirror(cm: CodeMirrorInstance): string | null {
+  if (isCodeMirror5(cm)) return cm.getValue();
+  if (isCodeMirror6(cm)) return cm.state.doc.toString();
   return null;
 }
 
-function writeCodeMirror(cm: any, text: string): boolean {
-  if (typeof cm.setValue === 'function') { cm.setValue(text); return true; }
-  if (typeof cm.dispatch === 'function') {
+function writeCodeMirror(cm: CodeMirrorInstance, text: string): boolean {
+  if (isCodeMirror5(cm)) { cm.setValue(text); return true; }
+  if (isCodeMirror6(cm)) {
     cm.dispatch({ changes: { from: 0, to: cm.state.doc.length, insert: text } });
     return true;
   }
@@ -46,36 +145,31 @@ function writeCodeMirror(cm: any, text: string): boolean {
 }
 
 // ── CodeMirror selection helpers ─────────────────────────────────────
-function readCodeMirrorSelection(cm: any): { text: string; start: number; end: number } | null {
+function readCodeMirrorSelection(cm: CodeMirrorInstance): { text: string; start: number; end: number } | null {
   // CM5
-  if (typeof cm.getSelection === 'function') {
+  if (isCodeMirror5(cm)) {
     const text = cm.getSelection();
     if (!text) return null;
-    if (typeof cm.indexFromPos === 'function') {
-      const fromPos = cm.getCursor('from');
-      const toPos = cm.getCursor('to');
-      const start = cm.indexFromPos(fromPos);
-      const end = cm.indexFromPos(toPos);
-      return { text, start, end };
-    }
-    return null;
+    const fromPos = cm.getCursor("from");
+    const toPos = cm.getCursor("to");
+    const start = cm.indexFromPos(fromPos);
+    const end = cm.indexFromPos(toPos);
+    return { text, start, end };
   }
   // CM6
-  if (cm.state?.selection?.main) {
+  if (isCodeMirror6(cm)) {
     const { from, to } = cm.state.selection.main;
     if (from === to) return null;
-    const text = typeof cm.state.sliceDoc === 'function'
-      ? cm.state.sliceDoc(from, to)
-      : cm.state.doc?.sliceString?.(from, to) || null;
+    const text = cm.state.doc.sliceString(from, to);
     if (!text) return null;
     return { text, start: from, end: to };
   }
   return null;
 }
 
-function writeCodeMirrorSelection(cm: any, start: number, end: number): boolean {
+function writeCodeMirrorSelection(cm: CodeMirrorInstance, start: number, end: number): boolean {
   // CM5
-  if (typeof cm.posFromIndex === 'function') {
+  if (isCodeMirror5(cm)) {
     const from = cm.posFromIndex(start);
     const to = cm.posFromIndex(end);
     cm.setSelection(from, to);
@@ -83,7 +177,7 @@ function writeCodeMirrorSelection(cm: any, start: number, end: number): boolean 
     return true;
   }
   // CM6
-  if (typeof cm.dispatch === 'function') {
+  if (isCodeMirror6(cm)) {
     try {
       cm.dispatch({ selection: { anchor: start, head: end } });
       cm.focus();
@@ -97,7 +191,7 @@ function writeCodeMirrorSelection(cm: any, start: number, end: number): boolean 
 function findLargeTextarea(): HTMLTextAreaElement | null {
   let best: HTMLTextAreaElement | null = null;
   let bestArea = 0;
-  const textareas = document.querySelectorAll<HTMLTextAreaElement>('textarea');
+  const textareas = document.querySelectorAll<HTMLTextAreaElement>("textarea");
   for (const ta of textareas) {
     const area = ta.offsetWidth * ta.offsetHeight;
     if (area > bestArea) { bestArea = area; best = ta; }
@@ -111,7 +205,7 @@ function textareaRead(el: HTMLElement): string | null {
 
 function textareaWrite(el: HTMLElement, text: string): boolean {
   (el as HTMLTextAreaElement).value = text;
-  el.dispatchEvent(new Event('input', { bubbles: true }));
+  el.dispatchEvent(new Event("input", { bubbles: true }));
   return true;
 }
 
@@ -131,19 +225,19 @@ function textareaWriteSelection(el: HTMLElement, start: number, end: number): bo
 
 // ── VisualEditor helpers ────────────────────────────────────────────
 function isVisualEditorActive(): boolean {
-  if (window.location.search.includes('veaction=edit')) return true;
-  if (document.querySelector('.ve-ui-surface, .ve-ce-documentNode, .ve-init-mw-viewPageTarget-surface, .ve-init-mw-desktopArticleTarget-surface')) return true;
+  if (window.location.search.includes("veaction=edit")) return true;
+  if (document.querySelector(".ve-ui-surface, .ve-ce-documentNode, .ve-init-mw-viewPageTarget-surface, .ve-init-mw-desktopArticleTarget-surface")) return true;
   return false;
 }
 
 /** Detect if VE is in source (wikitext) mode vs rich-visual mode */
 function isVeSourceMode(): boolean {
-  return !!document.querySelector('.ve-init-target-source, .ve-ui-source-mode');
+  return !!document.querySelector(".ve-init-target-source, .ve-ui-source-mode");
 }
 
 function findVeSurface(): HTMLElement | null {
   return document.querySelector<HTMLElement>(
-    '.ve-ui-surface, .ve-ce-documentNode, .ve-init-mw-viewPageTarget-surface, .ve-init-mw-desktopArticleTarget-surface'
+    ".ve-ui-surface, .ve-ce-documentNode, .ve-init-mw-viewPageTarget-surface, .ve-init-mw-desktopArticleTarget-surface"
   );
 }
 
@@ -151,14 +245,14 @@ function findVeSurface(): HTMLElement | null {
 function findVeSourceEditor(): HTMLElement | null {
   // VE source mode surfaces are contenteditable divs holding wikitext
   const container = document.querySelector<HTMLElement>(
-    '.ve-init-mw-desktopArticleTarget-targetContainer .ve-ui-surface, ' +
-    '.ve-init-target-source .ve-ui-surface, ' +
+    ".ve-init-mw-desktopArticleTarget-targetContainer .ve-ui-surface, " +
+    ".ve-init-target-source .ve-ui-surface, " +
     '#content.ve-init-mw-desktopArticleTarget-targetContainer [contenteditable="true"]'
   );
   if (container) return container;
 
   // Fallback: any contenteditable inside a VE source-mode wrapper
-  const wrapper = document.querySelector<HTMLElement>('.ve-init-target-source');
+  const wrapper = document.querySelector<HTMLElement>(".ve-init-target-source");
   if (wrapper) {
     const editable = wrapper.querySelector<HTMLElement>('[contenteditable="true"]');
     if (editable) return editable;
@@ -170,40 +264,40 @@ function findVeSourceEditor(): HTMLElement | null {
 function findVeSourceTab(): HTMLElement | null {
   if (!isVisualEditorActive()) return null;
   const tabSelectors = [
-    '.oo-ui-tabOptionWidget',
-    '.ve-ui-mwTemplatePage-menu',
-    '.ve-ui-mwTransclusionDialog-menu',
-    '.ve-ui-mwDialog-surface .oo-ui-tabPanelLayout',
+    ".oo-ui-tabOptionWidget",
+    ".ve-ui-mwTemplatePage-menu",
+    ".ve-ui-mwTransclusionDialog-menu",
+    ".ve-ui-mwDialog-surface .oo-ui-tabPanelLayout",
   ];
   for (const sel of tabSelectors) {
     const tabs = document.querySelectorAll<HTMLElement>(sel);
     for (const tab of tabs) {
-      if (tab.textContent?.toLowerCase().includes('source') || tab.textContent?.toLowerCase().includes('wikitext')) {
+      if (tab.textContent?.toLowerCase().includes("source") || tab.textContent?.toLowerCase().includes("wikitext")) {
         return tab;
       }
     }
   }
-  const sourceBtns = document.querySelectorAll<HTMLElement>('.oo-ui-tool');
+  const sourceBtns = document.querySelectorAll<HTMLElement>(".oo-ui-tool");
   for (const btn of sourceBtns) {
-    if (btn.textContent?.toLowerCase().includes('source')) return btn;
+    if (btn.textContent?.toLowerCase().includes("source")) return btn;
   }
   return null;
 }
 
 // ── Monaco helpers ──────────────────────────────────────────────────
-const monacoCache = new WeakMap<HTMLElement, any>();
+const monacoCache = new WeakMap<HTMLElement, MonacoModel>();
 
-function getMonacoModels(): any[] | null {
-  const m = (globalThis as any).monaco;
+function getMonacoModels(): MonacoModel[] | null {
+  const m = getMonacoGlobal();
   if (!m?.editor?.getModels) return null;
   return m.editor.getModels();
 }
 
-function readMonaco(model: any): string | null {
+function readMonaco(model: MonacoModel): string | null {
   return model?.getValue() ?? null;
 }
 
-function writeMonaco(model: any, text: string): boolean {
+function writeMonaco(model: MonacoModel, text: string): boolean {
   if (model) { model.setValue(text); return true; }
   return false;
 }
@@ -211,7 +305,7 @@ function writeMonaco(model: any, text: string): boolean {
 // ── Strategy definitions ────────────────────────────────────────────
 const strategies: Strategy[] = [
   {
-    name: 'codemirror',
+    name: "codemirror",
     priority: 100,
     detect: () => {
       const cm = getCodeMirror();
@@ -239,10 +333,10 @@ const strategies: Strategy[] = [
     },
   },
   {
-    name: 'monaco',
+    name: "monaco",
     priority: 95,
     detect: () => {
-      const el = document.querySelector<HTMLElement>('.monaco-editor');
+      const el = document.querySelector<HTMLElement>(".monaco-editor");
       if (!el) return null;
       const models = getMonacoModels();
       if (models?.[0]) monacoCache.set(el, models[0]);
@@ -257,7 +351,7 @@ const strategies: Strategy[] = [
       return model ? writeMonaco(model, text) : false;
     },
     readSelection: () => {
-      const m = (globalThis as any).monaco;
+      const m = getMonacoGlobal();
       const editor = m?.editor?.getEditors?.()?.[0];
       if (!editor) return null;
       const sel = editor.getSelection();
@@ -270,27 +364,28 @@ const strategies: Strategy[] = [
       return { text, start, end };
     },
     writeSelection: (_, start, end) => {
-      const m = (globalThis as any).monaco;
+      const m = getMonacoGlobal();
       const editor = m?.editor?.getEditors?.()?.[0];
       if (!editor) return false;
       const model = editor.getModel();
       if (!model) return false;
       const startPos = model.getPositionAt(start);
       const endPos = model.getPositionAt(end);
-      editor.setSelection(new m.Selection(startPos.lineNumber, startPos.column, endPos.lineNumber, endPos.column));
+      const sel = new m.Selection(startPos.lineNumber, startPos.column, endPos.lineNumber, endPos.column);
+      editor.setSelection(sel);
       editor.focus();
       return true;
     },
   },
   {
-    name: 'ckeditor',
+    name: "ckeditor",
     priority: 90,
     detect: () => {
-      const ck = (globalThis as any).CKEDITOR;
+      const ck = getCKEditorGlobal();
       if (!ck?.instances) return null;
       for (const id of Object.keys(ck.instances)) {
         const inst = ck.instances[id];
-        if (inst.mode === 'source') {
+        if (inst.mode === "source") {
           return document.getElementById(id) as HTMLTextAreaElement | null;
         }
       }
@@ -299,50 +394,50 @@ const strategies: Strategy[] = [
     read: textareaRead,
     write: (el, text) => {
       (el as HTMLTextAreaElement).value = text;
-      const ck = (globalThis as any).CKEDITOR;
+      const ck = getCKEditorGlobal();
       if (ck?.instances?.[el.id]) {
         ck.instances[el.id].setData(text);
       }
-      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event("input", { bubbles: true }));
       return true;
     },
     readSelection: (el) => textareaReadSelection(el),
     writeSelection: (el, start, end) => textareaWriteSelection(el, start, end),
   },
   {
-    name: 'classic-textarea',
+    name: "classic-textarea",
     priority: 80,
-    detect: () => document.getElementById('wpTextbox1') as HTMLTextAreaElement | null,
+    detect: () => document.getElementById("wpTextbox1") as HTMLTextAreaElement | null,
     read: textareaRead,
     write: textareaWrite,
     readSelection: (el) => textareaReadSelection(el),
     writeSelection: (el, start, end) => textareaWriteSelection(el, start, end),
   },
   {
-    name: 've-source',
+    name: "ve-source",
     priority: 85,
     detect: () => isVeSourceMode() ? findVeSourceEditor() : null,
     read: (el) => {
       // In source mode the contenteditable holds raw wikitext
       // Prefer hidden textarea value (it's always the canonical source)
-      const ta = document.getElementById('wpTextbox1') as HTMLTextAreaElement | null;
+      const ta = document.getElementById("wpTextbox1") as HTMLTextAreaElement | null;
       return ta?.value ?? el.textContent ?? null;
     },
     write: (el, text) => {
       // Write to the visible contenteditable surface (source mode = wikitext)
       el.textContent = text;
-      el.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+      el.dispatchEvent(new Event("input", { bubbles: true, cancelable: true }));
       // Also sync hidden textarea — VE source mode watches this for changes
-      const ta = document.getElementById('wpTextbox1') as HTMLTextAreaElement | null;
+      const ta = document.getElementById("wpTextbox1") as HTMLTextAreaElement | null;
       if (ta) {
         ta.value = text;
-        ta.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+        ta.dispatchEvent(new Event("input", { bubbles: true, cancelable: true }));
       }
       return true;
     },
   },
   {
-    name: 'visualeditor',
+    name: "visualeditor",
     priority: 70,
     detect: () => isVisualEditorActive() ? findVeSurface() : null,
     read: (el) => el.textContent || null,
@@ -353,7 +448,7 @@ const strategies: Strategy[] = [
     },
   },
   {
-    name: 'any-textarea',
+    name: "any-textarea",
     priority: 60,
     detect: () => findLargeTextarea(),
     read: textareaRead,
@@ -362,13 +457,13 @@ const strategies: Strategy[] = [
     writeSelection: (el, start, end) => textareaWriteSelection(el, start, end),
   },
   {
-    name: 'contenteditable',
+    name: "contenteditable",
     priority: 40,
     detect: () => document.querySelector<HTMLElement>('[contenteditable="true"]'),
     read: (el) => el.textContent || null,
     write: (el, text) => {
       el.textContent = text;
-      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event("input", { bubbles: true }));
       return true;
     },
   },

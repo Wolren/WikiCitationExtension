@@ -17,9 +17,9 @@ let ncbiKey = "";
 let semanticScholarKey = "";
 
 export function setApiKeys(keys: { crossrefEmail?: string; ncbiKey?: string; semanticScholarKey?: string }): void {
-  if (keys.crossrefEmail !== undefined) crossrefEmail = keys.crossrefEmail;
-  if (keys.ncbiKey !== undefined) ncbiKey = keys.ncbiKey;
-  if (keys.semanticScholarKey !== undefined) semanticScholarKey = keys.semanticScholarKey;
+  crossrefEmail = keys.crossrefEmail ?? crossrefEmail;
+  ncbiKey = keys.ncbiKey ?? ncbiKey;
+  semanticScholarKey = keys.semanticScholarKey ?? semanticScholarKey;
 }
 
 // ── Rate limiter (per-domain) ───────────────────────────────────────────────
@@ -134,7 +134,7 @@ async function dedupedFetch<T>(url: string, options?: RequestInit, signal?: Abor
             return null;
           }
           return await res.json() as T;
-        } catch (e) {
+        } catch {
           if (signal?.aborted) return null;
           if (attempt < maxRetries) {
             const backoff = Math.min(1000 * Math.pow(2, attempt), 30000);
@@ -175,7 +175,7 @@ async function fetchJson<T>(url: string, options?: RequestInit, signal?: AbortSi
   }
   const result = await dedupedFetch<T>(url, options, signal);
   if (result && cacheKey) {
-    apiCache.set(cacheKey, { data: result, ttl: cacheTtlMs }, cacheTtlMs).catch(() => {});
+    apiCache.set(cacheKey, { data: result, ttl: cacheTtlMs }, cacheTtlMs).catch(() => { /* cache write failure is non-fatal */ });
   }
   return result;
 }

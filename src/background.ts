@@ -1,6 +1,6 @@
 // Background service worker — message bridge for cross-context queries
-browser.runtime.onMessage.addListener((message: any) => {
-  if (message.type === "getWikiVariant") {
+browser.runtime.onMessage.addListener((message: unknown) => {
+  if ((message as Record<string, unknown>)?.type === "getWikiVariant") {
     return browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
       const tab = tabs[0];
       if (tab?.id) {
@@ -9,4 +9,5 @@ browser.runtime.onMessage.addListener((message: any) => {
       return { variant: "generic" };
     });
   }
+  return undefined;
 });

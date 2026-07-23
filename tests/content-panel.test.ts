@@ -171,7 +171,6 @@ describe("buildPanel", () => {
 
   it("panel persists across showDiffPanel calls with same state", () => {
     showDiffPanel("text", "diff", "Test_Page");
-    const _panel = document.getElementById("wikifix-panel")!;
     showDiffPanel("more text", "diff2", "Test_Page");
     const panel2 = document.getElementById("wikifix-panel")!;
     expect(panel2).not.toBeNull();

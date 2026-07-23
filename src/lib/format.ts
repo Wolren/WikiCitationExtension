@@ -198,7 +198,7 @@ export function templateTypeFor(template: string): string {
   return "cite web";
 }
 
-export function formatBody(params: Record<string, string>, style: string = "standard"): string {
+export function formatBody(params: Record<string, string>, style = "standard"): string {
   const entries = Object.entries(params);
   if (style === "wide") {
     return entries.map(([k, v]) => ` | ${k} = ${v}`).join("").trimStart();
@@ -237,7 +237,7 @@ export function formatStatsSummary(stats: ProcessStats): string {
     ${items.length > 0 ? `<div style="display:flex;flex-wrap:wrap;gap:6px">${items.map((b) => `<span style="background:#2d2d2d;padding:3px 8px;border-radius:3px;font-size:11px;white-space:nowrap">${b}</span>`).join("")}</div>` : ''}`;
 }
 
-export function describeChanges(original: string, fixed: string, _diff: string): { count: number; html: string } {
+export function describeChanges(original: string, fixed: string): { count: number; html: string } {
   const stats = createEmptyStats();
   stats.changed = original !== fixed ? 1 : 0;
   const html = formatStatsSummary(stats);

@@ -10,6 +10,7 @@ export interface StorageSettings {
   force_archive_all?: boolean;
   create_archive?: boolean;
   strip_issn?: boolean;
+  upgrade_https?: boolean;
   rename_ref_names?: boolean;
   skip_org_authors?: boolean;
   spacing_style?: string;
