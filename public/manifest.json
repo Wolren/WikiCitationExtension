@@ -2,11 +2,21 @@
   "manifest_version": 3,
   "default_locale": "en",
   "name": "WikiCitationExtension",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Fix English Wikipedia citations — expand metadata, clean up parameters, enrich identifiers. English Wikipedia only.",
   "permissions": ["storage"],
   "host_permissions": [
-    "https://en.wikipedia.org/*"
+    "https://en.wikipedia.org/*",
+    "https://api.crossref.org/*",
+    "https://api.datacite.org/*",
+    "https://eutils.ncbi.nlm.nih.gov/*",
+    "https://api.unpaywall.org/*",
+    "https://api.semanticscholar.org/*",
+    "https://api.openalex.org/*",
+    "https://openlibrary.org/*",
+    "https://export.arxiv.org/*",
+    "https://web.archive.org/*",
+    "https://www.ebi.ac.uk/*"
   ],
   "action": {
     "default_popup": "popup.html",

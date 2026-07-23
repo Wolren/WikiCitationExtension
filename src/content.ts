@@ -2,7 +2,7 @@ import { findCitations, parseParams, generateRefName, detectCitationType } from 
 import { expandCitation } from "./lib/expand";
 import { cleanupCitation, cleanupCitationBody, addArchiveUrls } from "./lib/cleanup";
 import { normalizeDate } from "./lib/dates";
-import { sortParams } from "./lib/spacing";
+import { normalizeSpacing, sortParams } from "./lib/spacing";
 import { generateDiff } from "./lib/diff";
 import { convertToSfn, type SfnOptions } from "./lib/sfn";
 import { processAuthors } from "./lib/authors";
@@ -465,6 +465,11 @@ async function processCitationData(
     expanded: false, cleaned: false, archived: false,
     enrichedIds: false, datesFixed: false, authorsProcessed: false, sortApplied: false,
   };
+
+  if (settings.spacing_style) {
+    params = normalizeSpacing(params);
+    changed = true;
+  }
 
   if (moduleEnabled(mods, "expand") && !_isOffline) {
     if (signal?.aborted) return null;
