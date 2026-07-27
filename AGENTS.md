@@ -14,7 +14,11 @@ npx vitest               # watch mode (re-runs on file changes)
 npx vitest run tests/cleanup.test.ts   # single file
 ```
 
-Config: `vitest.config.ts` — includes `tests/*.test.ts`, excludes `tests/api/`.
+Config: `vitest.config.ts` — includes `tests/*.test.ts`, excludes `tests/api/` and `tests/fuzz.test.ts`.
+
+> **Note:** `tests/fuzz.test.ts` is excluded from the default run — it has 5,500+ generated
+> tests that can hang or time out on this machine. Run it explicitly with
+> `npx vitest run tests/fuzz.test.ts` when making changes to citation processing.
 
 ### Slow (API) — `npm run test:api`
 

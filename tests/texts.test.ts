@@ -17,7 +17,7 @@ beforeEach(() => {
 });
 
 if (files.length === 0) {
-  it("no text files to test", () => {});
+  it("no text files to test", () => { /* skipped when no files exist */ });
 } else {
   describe("text file smoke tests", () => {
     for (const file of files) {

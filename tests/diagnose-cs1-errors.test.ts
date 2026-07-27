@@ -123,7 +123,7 @@ describe("CS1 error diagnostics: Schizoid personality disorder", () => {
       }, 60000);
     }
   } else {
-    it.skip("set CHECK_CS1_ERRORS=true to validate against Wikipedia's parser", () => {});
+    it.skip("set CHECK_CS1_ERRORS=true to validate against Wikipedia's parser", () => { /* skipped */ });
   }
 });
 

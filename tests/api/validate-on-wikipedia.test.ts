@@ -196,7 +196,7 @@ describe("Wikipedia validation (cached)", () => {
   const parsedProcessed = readJson<Record<string, ParseData>>(PARSED_PROCESSED_FILE);
 
   if (!articles || !parsedOriginals || !parsedProcessed) {
-    it.skip("cache not built — run VALIDATE_ON_WIKIPEDIA=true once to populate", () => {});
+    it.skip("cache not built — run VALIDATE_ON_WIKIPEDIA=true once to populate", () => { /* skipped */ });
     return;
   }
 
@@ -208,7 +208,7 @@ describe("Wikipedia validation (cached)", () => {
         const processedParse = parsedProcessed[cacheKey(i, cfg.name)];
 
         if (!originalParse || !processedParse) {
-          it.skip(`"${article.title}" — no cached data`, () => {});
+          it.skip(`"${article.title}" — no cached data`, () => { /* skipped */ });
           continue;
         }
 

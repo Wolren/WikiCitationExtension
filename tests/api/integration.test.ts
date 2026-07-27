@@ -220,7 +220,7 @@ describe("article cache", () => {
         }
       } else {
         for (const config of ONLINE_CONFIGS) {
-          it.skip(`processes with "${config.name}" (online) — set INTEGRATION_NETWORK=true to run`, () => {});
+          it.skip(`processes with "${config.name}" (online) — set INTEGRATION_NETWORK=true to run`, () => { /* skipped without network */ });
         }
       }
     });
