@@ -2,6 +2,8 @@ import { describe, it, expect, beforeAll, afterEach } from "vitest";
 import { processWikitext } from "../src/content";
 import { findCitations, parseParams } from "../src/lib/wikitext";
 import { cleanupCitation, cleanupCitationBody } from "../src/lib/cleanup";
+import { convertToSfn } from "../src/lib/sfn";
+import { normalizeDate } from "../src/lib/dates";
 import { resetApiProbeCache } from "../src/wiki-detector";
 import type { StorageSettings } from "../src/lib/types";
 
@@ -695,6 +697,12 @@ describe("fuzz: parseParams edge cases", () => {
       for (const [k, v] of Object.entries(result)) {
         expect(typeof k).toBe("string");
         expect(typeof v).toBe("string");
+      }
+      // Invariant: every param name is a lowercase identifier, every value
+      // is non-empty (parseParams drops empty values by contract)
+      for (const key of Object.keys(result)) {
+        expect(key).toMatch(/^[a-z0-9_\-]+$/);
+        expect(result[key].length).toBeGreaterThan(0);
       }
     });
   }

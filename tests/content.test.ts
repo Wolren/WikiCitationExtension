@@ -503,10 +503,8 @@ describe("processWikitext", () => {
       modules: "authors", author_style: "normal",
       force: false, ref_names: false,
     });
-    expect(result.text).toContain("last");
-    expect(result.text).toContain("Robertson");
-    expect(result.text).toContain("first");
-    expect(result.text).toContain("VL");
+    expect(result.text).toContain("last = Robertson");
+    expect(result.text).toContain("first = VL");
     expect(result.text).not.toContain("vauthors");
     expect(result.text).not.toMatch(/\|{2}/);
   });
@@ -668,5 +666,22 @@ describe("processWikitext", () => {
       // No journal, website, isbn etc — stays as citation
       expect(result.text).toContain("{{citation");
     });
+  });
+});
+
+describe("upgrade_https wiring", () => {
+  it("upgrades http URLs on upgrade domains when the setting is on (default)", async () => {
+    const text = "{{cite web |url=http://web.archive.org/web/1/http://example.com |title=T}}";
+    const result = await processWikitext(text, { modules: "cleanup", force: false, ref_names: false });
+    expect(result.text).toContain("https://web.archive.org/web/1/http://example.com");
+    expect(result.text).not.toContain("http://web.archive.org");
+  });
+
+  it("leaves http URLs alone when upgrade_https is false", async () => {
+    const text = "{{cite web |url=http://web.archive.org/web/1/http://example.com |title=T}}";
+    const result = await processWikitext(text, {
+      modules: "cleanup", force: false, ref_names: false, upgrade_https: false,
+    });
+    expect(result.text).toContain("http://web.archive.org/web/1/http://example.com");
   });
 });

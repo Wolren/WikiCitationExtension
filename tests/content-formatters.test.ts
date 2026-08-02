@@ -138,12 +138,14 @@ describe("buildPreservedBody", () => {
 
   it("preserves original spacing style when params unchanged", () => {
     const result = buildPreservedBody(sampleCitation, sampleCitation.params);
-    expect(result).toBeTruthy();
+    // Exact roundtrip: same params + same input → byte-identical body
+    expect(result).toBe("|last=Smith |year=2024 |title=Test");
   });
 
   it("handles empty params", () => {
     const result = buildPreservedBody(sampleCitation, {});
-    expect(result).toBeTruthy();
+    // Empty params → original body untouched, no stray pipes appended
+    expect(result).toBe("|last=Smith |year=2024 |title=Test");
   });
 });
 

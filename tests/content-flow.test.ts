@@ -150,9 +150,12 @@ describe("fixInEditor", () => {
   });
 
   it("reads wikitext from editor, processes it, writes back", async () => {
-    await fixInEditor(defaultSettings);
     const ta = document.getElementById("wpTextbox1") as HTMLTextAreaElement;
-    expect(ta.value).toBeTruthy();
+    ta.value = "{{cite web |url=http://example.com |title=Test |accessdate=2024-01-15}}";
+    await fixInEditor(defaultSettings);
+    // cleanup renames accessdate→access-date; dates normalizes the value
+    expect(ta.value).toContain("access-date=15 January 2024");
+    expect(ta.value).not.toContain("accessdate");
   });
 
   it("shows notification when editor is empty", async () => {

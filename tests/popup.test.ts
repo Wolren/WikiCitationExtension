@@ -239,6 +239,10 @@ describe("popup saving", () => {
     await tick(350);
 
     expect(mockCrypto.subtle.encrypt).toHaveBeenCalled();
+    // The saved value must be the ciphertext, never the plaintext key
+    const saved = (mockBrowser.storage.local.set as any).mock.calls.at(-1)[0];
+    const stored = saved.wikifix_settings_wikipedia || saved.wikifix_settings;
+    expect(JSON.stringify(stored)).not.toContain("my-secret-key");
   });
 });
 

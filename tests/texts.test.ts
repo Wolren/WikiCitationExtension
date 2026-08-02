@@ -17,7 +17,11 @@ beforeEach(() => {
 });
 
 if (files.length === 0) {
-  it("no text files to test", () => { /* skipped when no files exist */ });
+  it("FAIL: no text fixture files found", () => {
+    // Hard failure, not a silent skip — an empty fixture dir means the
+    // real-article smoke tests above are not running at all.
+    expect(files.length, "tests/fixtures/texts/ must contain .txt fixtures").toBeGreaterThan(0);
+  });
 } else {
   describe("text file smoke tests", () => {
     for (const file of files) {
