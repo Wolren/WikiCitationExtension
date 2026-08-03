@@ -19,6 +19,8 @@ A browser extension that finds, cleans, and enriches citations on English Wikipe
 
 New citations on Wikipedia are often incomplete or use deprecated parameters. Cleaning them manually is slow and error-prone. This extension automates the process by scanning the article page, running a configurable pipeline of processing modules over each citation, and letting the user apply changes back to the wikitext editor.
 
+> **You are responsible for your edits.** This tool supports your work, it does not replace your judgment. Review every change before applying it, and apply changes only to articles you are permitted to edit.
+
 ---
 
 ## How it works
