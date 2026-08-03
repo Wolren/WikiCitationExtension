@@ -10,7 +10,7 @@ WikiCitationExtension does **not** collect, store, transmit, or share any person
 
 ### Wikipedia.org
 
-The extension reads citation wikitext from English Wikipedia article pages and writes modifications back to the page editor when you choose to apply them. All changes are made through Wikipedia's own API using your existing Wikipedia session — the extension does not access your Wikipedia login credentials.
+The extension reads citation wikitext from English Wikipedia article pages and writes modifications back to the page editor when you choose to apply them. All changes are made through Wikipedia's own API using your existing Wikipedia session; the extension does not access your Wikipedia login credentials.
 
 ### External API requests
 
@@ -25,7 +25,7 @@ The extension makes read-only requests to public scholarly metadata APIs to enri
 - OpenAlex API (api.openalex.org)
 - Wayback Machine API (archive.org/wayback)
 
-These requests are made **from your browser** on your behalf to look up metadata for DOIs, PMIDs, ISBNs, and other identifiers found in Wikipedia citations. The identifiers being looked up come from the Wikipedia page you are viewing — no personal identifiers are sent with these requests.
+These requests are made **from your browser** on your behalf to look up metadata for DOIs, PMIDs, ISBNs, and other identifiers found in Wikipedia citations. The identifiers being looked up come from the Wikipedia page you are viewing; no personal identifiers are sent with these requests.
 
 CrossRef requests may include an optional email address you provide in the extension settings for polite pool access. This email is sent only to CrossRef and is used solely for rate-limit prioritization.
 

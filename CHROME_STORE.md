@@ -9,7 +9,7 @@
 Productivity or Web Development
 
 ### Content Rating
-Everyone (the extension only processes citation text on Wikipedia — no mature content)
+Everyone (the extension only processes citation text on Wikipedia; no mature content)
 
 ### Privacy Fields
 - No data is collected, stored, or transmitted to the developer
@@ -20,7 +20,7 @@ Everyone (the extension only processes citation text on Wikipedia — no mature 
 **Small promo tile** (440x280):
 A simple Wikipedia-blue background with white "W" logo and text "Wikipedia Citation Fixer"
 
-**Marquee promo tile** (1400x560) — optional but recommended for visibility.
+**Marquee promo tile** (1400x560): optional but recommended for visibility.
 
 ## Required Assets Checklist
 

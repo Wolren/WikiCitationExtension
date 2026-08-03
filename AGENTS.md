@@ -1,10 +1,10 @@
-# WikiCitationExtension — Agent Guide
+# WikiCitationExtension: Agent Guide
 
 ## Test structure
 
 Tests are split into two tiers to avoid rate-limit timeouts.
 
-### Fast — `npm test` (default)
+### Fast: `npm test` (default)
 
 Pure unit/functional tests. No external API calls. Run these during development:
 
@@ -14,13 +14,13 @@ npx vitest               # watch mode (re-runs on file changes)
 npx vitest run tests/cleanup.test.ts   # single file
 ```
 
-Config: `vitest.config.ts` — includes `tests/*.test.ts`, excludes `tests/api/` and `tests/fuzz.test.ts`.
+Config: `vitest.config.ts` includes `tests/*.test.ts`, excludes `tests/api/` and `tests/fuzz.test.ts`.
 
-> **Note:** `tests/fuzz.test.ts` is excluded from the default run — it has 5,500+ generated
+> **Note:** `tests/fuzz.test.ts` is excluded from the default run; it has 5,500+ generated
 > tests that can hang or time out on this machine. Run it explicitly with
 > `npx vitest run tests/fuzz.test.ts` when making changes to citation processing.
 
-### Slow (API) — `npm run test:api`
+### Slow (API): `npm run test:api`
 
 Tests that fetch real Wikipedia articles or hit external APIs. Can time out or hit
 rate limits:
@@ -30,20 +30,20 @@ npm run test:api                                              # all API tests
 VALIDATE_ON_WIKIPEDIA=true npx vitest run -c vitest.api.config.ts  # force re-fetch
 ```
 
-Config: `vitest.api.config.ts` — includes `tests/api/**/*.test.ts`.
+Config: `vitest.api.config.ts` includes `tests/api/**/*.test.ts`.
 
 API test files live in `tests/api/`:
-- `tests/api/robustness.test.ts` — invariant checks on live Wikipedia articles
-- `tests/api/integration.test.ts` — end-to-end with article cache
-- `tests/api/validate-on-wikipedia.test.ts` — compares output against Wikipedia parser
+- `tests/api/robustness.test.ts` - invariant checks on live Wikipedia articles
+- `tests/api/integration.test.ts` - end-to-end with article cache
+- `tests/api/validate-on-wikipedia.test.ts` - compares output against Wikipedia parser
 
-### All tests — `npm run test:all`
+### All tests: `npm run test:all`
 
 ```bash
 npm run test:all              # fast + API, full suite
 ```
 
-Config: `vitest.all.config.ts` — includes everything.
+Config: `vitest.all.config.ts` includes everything.
 
 ### CI
 
@@ -75,4 +75,4 @@ When a user changes a dependent setting while its module is off, a warning toast
 appears and the change is reverted. Controls also appear dimmed when their
 module is disabled.
 
-Implementation: `src/popup.ts` — `DEPENDS_ON` map, `watchDependent()` handler.
+Implementation: `src/popup.ts` - `DEPENDS_ON` map, `watchDependent()` handler.

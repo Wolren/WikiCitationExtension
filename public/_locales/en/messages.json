@@ -59,7 +59,7 @@
 
   "sectionCacheRetry": { "message": "Cache & Retry" },
   "labelCacheTtl": { "message": "Cache TTL (hours):" },
-  "descCacheTtl": { "message": "How long API responses are cached. DOIs/PMIDs are immutable — 168h (7 days) is safe." },
+  "descCacheTtl": { "message": "How long API responses are cached. DOIs/PMIDs are immutable; 168h (7 days) is safe." },
   "labelMaxRetries": { "message": "Max retries:" },
   "descMaxRetries": { "message": "Retry on 429 rate limit or transient errors. 0 = no retries." },
 
@@ -83,7 +83,7 @@
   "labelForceRefresh": { "message": "Force refresh" },
   "descForceRefresh": { "message": "(re-fetches all metadata, replaces existing fields)" },
 
-  "panelTitle": { "message": "WikiCitationExtension — Citation diff panel" },
+  "panelTitle": { "message": "WikiCitationExtension: Citation diff panel" },
   "btnCycleDock": { "message": "Cycle dock corner" },
   "btnMinimize": { "message": "Minimize" },
 

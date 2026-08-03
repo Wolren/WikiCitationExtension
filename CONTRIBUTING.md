@@ -18,4 +18,4 @@ Thanks for considering contributing to WikiCitationExtension!
 ## Code style
 
 - Follow the existing code conventions
-- Keep changes focused — one PR per feature/fix
+- Keep changes focused: one PR per feature/fix

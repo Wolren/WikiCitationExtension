@@ -1,16 +1,21 @@
-[![License](https://img.shields.io/github/license/Wolren/WikiCitationExtension)](LICENSE)
-[![Last commit](https://img.shields.io/github/last-commit/Wolren/WikiCitationExtension)](https://github.com/Wolren/WikiCitationExtension/commits)
-[![Issues](https://img.shields.io/github/issues/Wolren/WikiCitationExtension)](https://github.com/Wolren/WikiCitationExtension/issues)
-[![Repo size](https://img.shields.io/github/repo-size/Wolren/WikiCitationExtension)](https://github.com/Wolren/WikiCitationExtension)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
-[![esbuild](https://img.shields.io/badge/Bundler-esbuild-FFCF00?logo=esbuild&logoColor=black)](build.mjs)
-[![Tests](https://img.shields.io/badge/Tests-Vitest-6E9F18?logo=vitest&logoColor=white)](https://vitest.dev)
-[![Chrome](https://img.shields.io/badge/Chrome-MV3-4285F4?logo=googlechrome&logoColor=white)](public/manifest.json)
-[![Firefox](https://img.shields.io/badge/Firefox-MV3-FF7139?logo=firefoxbrowser&logoColor=white)](public/manifest.json)
+<div align="center">
+
+![WikiCitationExtension](public/icon128.png)
 
 # WikiCitationExtension
 
 A browser extension that finds, cleans, and enriches citations on English Wikipedia pages.
+
+[![License](https://img.shields.io/github/license/Wolren/WikiCitationExtension)](LICENSE)
+[![Last commit](https://img.shields.io/github/last-commit/Wolren/WikiCitationExtension)](https://github.com/Wolren/WikiCitationExtension/commits)
+[![Issues](https://img.shields.io/github/issues/Wolren/WikiCitationExtension)](https://github.com/Wolren/WikiCitationExtension/issues)
+[![Code size](https://img.shields.io/github/languages/code-size/Wolren/WikiCitationExtension)]()
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
+[![Tests](https://img.shields.io/badge/Tests-Vitest-6E9F18?logo=vitest&logoColor=white)](https://vitest.dev)
+[![Chrome](https://img.shields.io/badge/Chrome-MV3-4285F4?logo=googlechrome&logoColor=white)](public/manifest.json)
+[![Firefox](https://img.shields.io/badge/Firefox-MV3-FF7139?logo=firefoxbrowser&logoColor=white)](public/manifest.json)
+
+</div>
 
 New citations on Wikipedia are often incomplete or use deprecated parameters. Cleaning them manually is slow and error-prone. This extension automates the process by scanning the article page, running a configurable pipeline of processing modules over each citation, and letting the user apply changes back to the wikitext editor.
 
@@ -25,21 +30,13 @@ graph LR
     WP[Wikipedia article page] --> CS[Content script]
     CS --> SCAN[Scan DOM for ref tags]
     SCAN --> WIKI[Parse to wikitext]
-    WIKI --> PIPE{Pipeline}
-    PIPE --> EXP[Expand]
-    PIPE --> CLN[Cleanup]
-    PIPE --> DTE[Dates]
-    PIPE --> ATH[Authors]
-    PIPE --> ENR[Enrich IDs]
-    PIPE --> SRT[Sort]
-    PIPE --> ARC[Archive]
-    PIPE --> DED[Dedup]
-    PIPE --> CS2[CS2toCS1]
-    PIPE --> SFN[SFN convert]
+    WIKI --> PIPE[Processing pipeline]
     PIPE --> DIFF[Diff generator]
     DIFF --> UI[Panel UI: diff + apply]
     UI --> EDITOR[Wikipedia wikitext editor]
 ```
+
+The pipeline has 10 modules, each toggleable from the extension popup. See the features table below for what each one does.
 
 ---
 
@@ -59,8 +56,6 @@ graph LR
 | Archive | Adds or validates Wayback Machine archive links |
 | Dedup | Flags duplicate citations by matching DOI or PMID |
 | SFN | Converts inline `<ref>{{cite ...}}</ref>` to `{{sfn}}` short footnotes |
-
-Each module can be toggled individually from the extension popup.
 
 ### CS1 error prevention
 
@@ -174,7 +169,9 @@ npx tsx tools/diagnose-cs1-errors.ts "Article Title"
 The extension makes read-only requests to:
 
 - [CrossRef REST API](https://api.crossref.org) - metadata lookup by DOI
+- [DataCite API](https://api.datacite.org) - DOI metadata fallback
 - [NCBI E-utilities](https://eutils.ncbi.nlm.nih.gov) - PubMed article metadata
+- [Unpaywall API](https://api.unpaywall.org) - open access metadata
 - [Semantic Scholar API](https://api.semanticscholar.org) - paper metadata and citation graph
 - [arXiv API](https://export.arxiv.org) - arXiv paper metadata
 - [OpenLibrary API](https://openlibrary.org) - ISBN book metadata
@@ -189,6 +186,18 @@ The extension makes read-only requests to:
 - **English Wikipedia only.** The extension relies on English Wikipedia's citation templates, module behavior, and API responses. Other language editions and MediaWiki wikis will not work correctly.
 - **Requires network access.** Several modules (Expand, Enrich IDs, Archive) need internet connectivity to external APIs for metadata enrichment.
 - **No offline citation fixes.** The cleanup module handles local fixes, but the most valuable transformations require API lookups.
+
+---
+
+## Contributing
+
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md) before opening a pull request.
+
+---
+
+## Security
+
+Report vulnerabilities through the policy in [SECURITY.md](SECURITY.md).
 
 ---
 

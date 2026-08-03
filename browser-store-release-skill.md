@@ -38,7 +38,7 @@ Complete compliance and release guide for Chrome Web Store and Firefox Add-ons (
 | Max file size | No explicit limit | 200 MB |
 | Review time | ~1-3 days automated | ~1-4 weeks manual |
 
-## Chrome Web Store — Full Policy Requirements
+## Chrome Web Store: Full Policy Requirements
 
 ### 1. Developer Account
 - Pay $5 one-time registration fee
@@ -120,7 +120,7 @@ Certain product types are restricted from featuring (but still available): VPNs,
 - Primary purpose must not be serving ads
 
 **Listing Requirements:**
-- No blank description field — guaranteed rejection
+- No blank description field: guaranteed rejection
 - Must have icon AND screenshots
 - Metadata must be accurate, up to date, and comprehensive
 - No keyword spam (repetition >5x, irrelevant keywords)
@@ -162,7 +162,7 @@ Certain product types are restricted from featuring (but still available): VPNs,
 
 ---
 
-## Firefox Add-ons (AMO) — Full Policy Requirements
+## Firefox Add-ons (AMO): Full Policy Requirements
 
 ### 1. No Surprises
 - Functionality must be easily discernible from the listing
@@ -196,7 +196,7 @@ Certain product types are restricted from featuring (but still available): VPNs,
 
 ### 4. Development Practices
 - Only request necessary permissions
-- Must be self-contained — no loading remote code for execution
+- Must be self-contained: no loading remote code for execution
 - No remote new tab page
 - Must not relax CSP
 - Must use encryption for remote data transport
@@ -253,7 +253,7 @@ Certain product types are restricted from featuring (but still available): VPNs,
 - [ ] **No obfuscated code:** verify all bundled code is readable after minification
 - [ ] **No remote code:** all scripts are from extension package, no `eval()` for remote strings
 - [ ] **No unused permissions:** remove any permissions not actively used
-- [ ] **Icons:** 16, 48, 128 PNG (not SVG) — PNG is safer for Chrome
+- [ ] **Icons:** 16, 48, 128 PNG (not SVG); PNG is safer for Chrome
 - [ ] **Screenshots:** at least 1, showing the extension functioning on a real page
 - [ ] **Description:** clear, accurate, no keyword spam, no false claims
 - [ ] **Category:** correctly categorized in dashboard
@@ -318,7 +318,7 @@ Certain product types are restricted from featuring (but still available): VPNs,
 
 ---
 
-## Pitfalls — from experience
+## Pitfalls: from experience
 
 - **Chrome review is mostly automated** but can reject for broad permissions, misleading descriptions, or broken functionality. The first rejection is usually fixable.
 - **Firefox does full human review.** Expect 1-4 weeks. They will check source code thoroughly if you upload it. Make sure your build instructions work from scratch.
@@ -348,10 +348,10 @@ Certain product types are restricted from featuring (but still available): VPNs,
 - i18n for English (default locale)
 
 ### NEEDS ATTENTION
-- [ ] **Screenshots:** none exist yet — need at least 1 showing the panel on Wikipedia
+- [ ] **Screenshots:** none exist yet; need at least 1 showing the panel on Wikipedia
 - [ ] **Chrome promo tiles:** 440x280 recommended, 1400x560 optional
-- [ ] **Content rating:** must be set in Chrome dashboard (likely "Everyone" — no mature content)
-- [ ] **Privacy policy URL:** needs to be hosted somewhere stable — GitHub raw URL works
+- [ ] **Content rating:** must be set in Chrome dashboard (likely "Everyone"; no mature content)
+- [ ] **Privacy policy URL:** needs to be hosted somewhere stable; GitHub raw URL works
 - [ ] **Limited Use compliance statement:** needs to be on PRIVACY.md or a website
 - [ ] **Source code package for Firefox:** needs a `scripts/source-package.sh` or zip of src/ with build README
 - [ ] **Category selection:** needs to be chosen in both dashboards (Productivity? Web Development? Search Tools?)

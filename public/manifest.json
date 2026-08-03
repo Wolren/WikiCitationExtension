@@ -3,7 +3,7 @@
   "default_locale": "en",
   "name": "WikiCitationExtension",
   "version": "1.1.0",
-  "description": "Fix English Wikipedia citations — expand metadata, clean up parameters, enrich identifiers. English Wikipedia only.",
+  "description": "Fix English Wikipedia citations: expand metadata, clean up parameters, enrich identifiers. English Wikipedia only.",
   "permissions": ["storage"],
   "host_permissions": [
     "https://en.wikipedia.org/*",

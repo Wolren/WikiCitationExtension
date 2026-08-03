@@ -4,7 +4,7 @@
 
 ### Listing Details
 - **Name:** WikiCitationExtension
-- **Summary:** Fix Wikipedia citations — expand metadata from DOI/PMID/ISBN, normalize dates, clean up deprecated parameters, and enrich identifiers.
+- **Summary:** Fix Wikipedia citations: expand metadata from DOI/PMID/ISBN, normalize dates, clean up deprecated parameters, and enrich identifiers.
 - **Description:** A browser extension that scans English Wikipedia articles for citations and passes them through a configurable pipeline: expand missing fields, fix CS1 errors, normalize dates, convert citation styles, add archive links, and more. All changes are reviewed in a diff panel before applying.
 - **Categories:** Productivity, Web Development
 - **License:** MIT
